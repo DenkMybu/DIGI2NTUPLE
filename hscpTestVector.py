@@ -100,11 +100,21 @@ if __name__ == "__main__":
     NB_match_tower_vs_nb_tower = TH2D("hscp_matched_iso_vs_tower","nb hscp matched and iso tower, vs nb tower per event", 10,0,10,10,0,10)
 
 
+    NB_iso_below_vs_nb_hscp = TH2D("#_nb_below_iso_vs_nb_hscp","nb seed < iso 0.7 vs nb hscp", 5,0,5,10,0,10)
+    NB_iso_below_vs_nb_hscp.GetXaxis().SetTitle("# seed IsoVar < 0.7")
+    NB_iso_below_vs_nb_hscp.GetYaxis().SetTitle("# HSCP")
+
+
+
+    NB_iso_below_vs_nb_hscp_tight = TH2D("#_nb_below_iso_vs_nb_tight_hscp","nb seed < iso 0.7 vs nb tight hscp", 5,0,5,10,0,10)
+    NB_iso_below_vs_nb_hscp_tight.GetXaxis().SetTitle("# seed IsoVar < 0.7")
+    NB_iso_below_vs_nb_hscp_tight.GetYaxis().SetTitle("# tight HSCP")
+
     Number_HSCP_per_event = TH1F("#_HSCP_per_event","nb HSCP per event",15,0,15)
     Number_HSCP_CUTS_per_event = TH1F("#_HSCP_per_event_post_cuts","nb HSCP per event after cuts on iso and pt",15,0,15)
     nb_towers_cut_per_Event = TH1F('number_of_towers_passing_cuts','tower nb passing thresholds',50,0,50)
     
-    ratio_ecal_hcal_seeds = TH1F('ECAL_over_HCAL_final_seeds','ratio ecal/hcal for final seeds',30,0,3)
+    ratio_ecal_hcal_seeds = TH1F('ECAL_over_HCAL_final_seeds','ratio ecal/hcal for final seeds',40,0,0.4)
 
     Eff_Nseeds_over_nseedshscp = TH1F('Nseeds_over_Nseedhscp','efficiency # of seeds / # of seeds matching with an hscp',100,0,100)
 
@@ -113,6 +123,10 @@ if __name__ == "__main__":
 
     Xi2_choice_2_and_1_hscp_iso = TH1F("HSCP_ISO_Xi2_2_and_1_separate","smallest Xi2 when 2 together and 1 alone with HSCP matching and iso",100,0,0.5)
     Xi2_choice_3_hscp_iso = TH1F ("HSCP_ISO_Xi2_3_in_line","smallest Xi2 when 3 neighbours are in line with hscp matching and iso",100,0,0.5)
+
+
+    dr_min_iso_hscp_tower = TH1F('min_dr_hscp_tower_iso','min dr between an hscp and a tower with iso var < 0.7',10000,0,10)
+
     #============ END CALO TOWER HISTOS ===========
 
 
@@ -186,6 +200,8 @@ if __name__ == "__main__":
 
     nb_cdt_2by2,nb_cdt_out_2by2 = [0] * 4,[0] * 4
     nb_cdt_2by2_hscp_iso,nb_cdt_out_2by2_hscp_iso = [0] * 4,[0] * 4
+
+    tot_num_eff,tot_denom_eff = 0,0
 
     totnb_tower_evt,totnb_tower_evt_hscp_iso = 0,0
     for eventnr,event in enumerate(events):#events
@@ -328,6 +344,7 @@ if __name__ == "__main__":
                                                 Sum_Energy_8_neighbours_threshold_HSCP_ISO.Fill(sum_all_ngh_below_hscp_iso/(8-nb_ngh_below_hscp_iso))
                                             else:
                                                 Sum_Energy_8_neighbours_threshold_HSCP_ISO.Fill(-1)
+
                                             if len(best_cdt_hscp_iso) != 0:
                                                 CaloVector.remove(best_cdt_hscp_iso[0])
     
@@ -358,127 +375,134 @@ if __name__ == "__main__":
 
         if CaloVectorAll:
             nb_non_phys = 0
+            nb_below_iso = 0
             for l in range(len(CaloVectorAll)-1,0,-1):
                 #print(len(CaloVectorAll))
                 if CaloVectorAll[l][6] > 0:
                     if CaloVectorAll[l][5] > 0.6 and CaloVectorAll[l][6] > 2.5 and (CaloVectorAll[l][5] / CaloVectorAll[l][6]) < 0.3 and (CaloVectorAll[l][5] + CaloVectorAll[l][6]) < 15:
-                        nb_tower_evt+=1
-                        totnb_tower_evt+=1
+                        nb_tower_evt , totnb_tower_evt, nb_denom_eff = nb_tower_evt+1, totnb_tower_evt+1, nb_denom_eff+1
+                        tot_denom_eff += 1
                         ratio_ecal_hcal_seeds.Fill(CaloVectorAll[l][5] / CaloVectorAll[l][6])
-                        nb_denom_eff +=1
+
                         idx_phi,idx_eta,emEnergy,hadenergy,phi,eta = CaloVectorAll[l][1], CaloVectorAll[l][2],CaloVectorAll[l][5],CaloVectorAll[l][6],CaloVectorAll[l][3],CaloVectorAll[l][4]
 
                         new_idx_phi,new_idx_eta,new_ratio_energy,new_phi,new_eta = FindTrueSeed(CaloVectorAll,idx_phi,idx_eta,(emEnergy/hadenergy),"both",phi,eta)
 
-                        if new_idx_phi != 999999:
-                            all_nb_shift=0
-                            while ((new_idx_phi != idx_phi) or (new_idx_eta != idx_eta)):
-                                idx_phi,idx_eta,phi,eta = new_idx_phi,new_idx_eta,new_phi,new_eta
-                                new_idx_phi,new_idx_eta,new_ratio_energy,new_phi,new_eta = FindTrueSeed(CaloVectorAll,idx_phi,idx_eta,new_ratio_energy,"both",new_phi,new_eta)
-                                all_nb_shift +=1
-    
-    
-                        if new_idx_phi != 999999:
-                            Number_shift_seedOI.Fill(all_nb_shift)
-    
-                            id_list,nb_all_ngh,nb_ngh_below,nb_ngh_above,sum_all_ngh_below = Create3by3MatrixLoop(CaloVectorAll,idx_phi,idx_eta,'both',2)
-                            sq_oi = 5
-                            nb_towers_8_above_trh.Fill(nb_ngh_above)
-                            Number_all_2by2_max_event.Fill(len(id_list)+1)
-                            min_dr_hscp = 999999
-                            for k in range(len(HSCPVector)-1,0,-1):
-                                dr_hscp = deltaR(deltaR2(new_eta,new_phi,HSCPVector[k][2],HSCPVector[k][1]))
-                                if dr_hscp < min_dr_hscp:
-                                    min_dr_hscp = dr_hscp
-                                    id_hscp = HSCPVector[k][0]
-                                    hscp_cdt = HSCPVector[k]
+                        all_nb_shift=0
+                        while ((new_idx_phi != idx_phi) or (new_idx_eta != idx_eta)):
+                            idx_phi,idx_eta,phi,eta = new_idx_phi,new_idx_eta,new_phi,new_eta
+                            new_idx_phi,new_idx_eta,new_ratio_energy,new_phi,new_eta = FindTrueSeed(CaloVectorAll,idx_phi,idx_eta,new_ratio_energy,"both",new_phi,new_eta)
+                            all_nb_shift +=1
 
-                            if min_dr_hscp < 0.2:
-                                nb_num_eff +=1
-                                HSCPVector.remove(hscp_cdt)
+    
+                        Number_shift_seedOI.Fill(all_nb_shift)
 
-                            if len(id_list) == 0:
-                                nb_cdt_2by2[0] += 1
+                        id_list,nb_all_ngh,nb_ngh_below,nb_ngh_above,sum_all_ngh_below = Create3by3MatrixLoop(CaloVectorAll,idx_phi,idx_eta,'both',2)
+                        sq_oi = 5
+                        nb_towers_8_above_trh.Fill(nb_ngh_above)
+                        Number_all_2by2_max_event.Fill(len(id_list)+1)
+
+                        
+                        min_dr_hscp = 999999
+                        for k in range(len(HSCPVector)-1,0,-1):
+                            dr_hscp = deltaR(deltaR2(new_eta,new_phi,HSCPVector[k][2],HSCPVector[k][1]))
+                            if dr_hscp < min_dr_hscp:
+                                min_dr_hscp = dr_hscp
+                                id_hscp = HSCPVector[k][0]
+                                hscp_cdt = HSCPVector[k]
+
+                        if min_dr_hscp < 0.2:
+                            nb_num_eff +=1
+                            tot_num_eff += 1
+                            HSCPVector.remove(hscp_cdt)
+                        
+
+                        if len(id_list) == 0:
+                            nb_cdt_2by2[0] += 1
+                            nb_towers_8_below_trh.Fill(nb_ngh_below)
+                            nb_towers_8_all_trh.Fill(nb_ngh_below + nb_ngh_above)
+
+                        elif len(id_list) == 1 or len(id_list) == 2 or len(id_list) == 3:
+                            sq_oi = IsInMatrix(id_list,idx_phi,idx_eta)
+                            if sq_oi == 1:
+                                nb_cdt_2by2[len(id_list)] += 1
                                 nb_towers_8_below_trh.Fill(nb_ngh_below)
                                 nb_towers_8_all_trh.Fill(nb_ngh_below + nb_ngh_above)
-                                if nb_ngh_below != 8:
-                                    Sum_Energy_8_neighbours_threshold.Fill(sum_all_ngh_below/(8-nb_ngh_below))
-                                else:
-                                    Sum_Energy_8_neighbours_threshold.Fill(-1)
-                                
+                                for o in range(len(id_list)):
+                                    CaloVectorAll.remove((id_list[o]))
+                         
+                            else:
+                                if len(id_list) == 1:
+                                    sum_all_ngh_below += (id_list[0][5] + id_list[0][6])
+                                    nb_ngh_below +=1
 
-                            elif len(id_list) == 1 or len(id_list) == 2 or len(id_list) == 3:
-                                sq_oi = IsInMatrix(id_list,idx_phi,idx_eta)
-                                if sq_oi == 1:
-                                        
-                                    nb_cdt_2by2[len(id_list)] += 1
-                                    nb_towers_8_below_trh.Fill(nb_ngh_below)
-                                    nb_towers_8_all_trh.Fill(nb_ngh_below + nb_ngh_above)
-                                    if nb_ngh_below != 8:
-                                        Sum_Energy_8_neighbours_threshold.Fill(sum_all_ngh_below/(8-nb_ngh_below))
-                                    else:
-                                        Sum_Energy_8_neighbours_threshold.Fill(-1)
-
-                                    for o in range(len(id_list)):
-                                        CaloVectorAll.remove((id_list[o]))
-                             
-                                else:
-                                    if len(id_list) == 1:
-                                        sum_all_ngh_below += (id_list[0][5] + id_list[0][6])
+                                elif len(id_list) == 2:
+                                    worst_cdt = FurthestInRatio(id_list,new_ratio_energy,1,idx_phi,idx_eta,Xi2_choice_2_and_1)
+                                    best_cdt = FurthestInRatio(id_list,new_ratio_energy,2,idx_phi,idx_eta,Xi2_choice_2_and_1)
+                                    nb_cdt_out_2by2[1] +=1
+                                    for o in range(len(worst_cdt)):
+                                        sum_all_ngh_below += (worst_cdt[o][5] + worst_cdt[o][6])
                                         nb_ngh_below +=1
-                                        if nb_ngh_below != 8:
-                                            Sum_Energy_8_neighbours_threshold.Fill(sum_all_ngh_below/(8-nb_ngh_below))
-                                        else:
-                                            Sum_Energy_8_neighbours_threshold.Fill(-1)
 
-                                    if len(id_list) == 2:
-                                        worst_cdt = FurthestInRatio(id_list,new_ratio_energy,1,idx_phi,idx_eta,Xi2_choice_2_and_1)
-                                        best_cdt = FurthestInRatio(id_list,new_ratio_energy,2,idx_phi,idx_eta,Xi2_choice_2_and_1)
-                                        nb_cdt_out_2by2[1] +=1
-                                        for o in range(len(worst_cdt)):
-                                            sum_all_ngh_below += (worst_cdt[o][5] + worst_cdt[o][6])
+                                    if len(best_cdt) != 0:
+                                        CaloVectorAll.remove(best_cdt[0])
+
+                                elif len(id_list) == 3:
+                                    worst_cdt_3 = FurthestInRatio(id_list,new_ratio_energy,1,idx_phi,idx_eta,Xi2_choice_3)
+                                    best_cdt_3 = FurthestInRatio(id_list,new_ratio_energy,2,idx_phi,idx_eta,Xi2_choice_3)
+                                    nb_cdt_out_2by2[2] +=1
+                                    if len(worst_cdt_3) != 0:
+                                        for i in range(len(worst_cdt_3)):
+                                            sum_all_ngh_below += worst_cdt_3[i][5] + worst_cdt_3[i][6]
                                             nb_ngh_below +=1
 
-                                        if nb_ngh_below != 8:
-                                            Sum_Energy_8_neighbours_threshold.Fill(sum_all_ngh_below/(8-nb_ngh_below))
-                                        else:
-                                            Sum_Energy_8_neighbours_threshold.Fill(-1)
+                                    if len(best_cdt_3) != 0:
+                                        for i in range(len(best_cdt_3)):
+                                            CaloVectorAll.remove((best_cdt_3[i]))
 
-                                        if len(best_cdt) != 0:
-                                            CaloVectorAll.remove(best_cdt[0])
+                        else:
+                            nb_non_phys +=1
+                            Number_non_physical_event.Fill(1)
 
-                                    elif len(id_list) == 3:
-                                        worst_cdt_3 = FurthestInRatio(id_list,new_ratio_energy,1,idx_phi,idx_eta,Xi2_choice_3)
-                                        best_cdt_3 = FurthestInRatio(id_list,new_ratio_energy,2,idx_phi,idx_eta,Xi2_choice_3)
-                                        nb_cdt_out_2by2[2] +=1
-                                        if len(worst_cdt_3) != 0:
-                                            for i in range(len(worst_cdt_3)):
-                                                sum_all_ngh_below += worst_cdt_3[i][5] + worst_cdt_3[i][6]
-                                                nb_ngh_below +=1
-                                            if nb_ngh_below != 8:
-                                                Sum_Energy_8_neighbours_threshold.Fill(sum_all_ngh_below/(8-nb_ngh_below))
-                                            else:
-                                                Sum_Energy_8_neighbours_threshold.Fill(-1)                                                
-                                        if len(best_cdt_3) != 0:
-                                            for i in range(len(best_cdt_3)):
-                                                CaloVectorAll.remove((best_cdt_3[i]))
+                       
+                        if nb_ngh_below != 8:
+                            Iso_var = sum_all_ngh_below/(8-nb_ngh_below)
+                            Sum_Energy_8_neighbours_threshold.Fill(Iso_var)
+                            if Iso_var < 0.8:
+                                min_dr_end = 999999
+                                nb_below_iso+=1
+                                for k in range(hscparticle.size()):
+                                    if hscparticle[k].trackRef().isNonnull():
+                                        track_end = hscparticle[k].trackRef()
+                                        dr_end = deltaR(deltaR2(new_eta,new_phi,track_end.eta(),track_end.phi()))
+                                        if dr_end < min_dr_end:
+                                            min_dr_end = dr_end
 
-                            else:
-                                nb_non_phys +=1
-                                Number_non_physical_event.Fill(1)
+                                dr_min_iso_hscp_tower.Fill(min_dr_end)
 
-            if nb_denom_eff !=0:
-                Eff_Nseeds_over_nseedshscp.Fill((nb_num_eff/nb_denom_eff)*100)
+                                
+                                 
+                        else:
+                            Sum_Energy_8_neighbours_threshold.Fill(-1)
 
+            
+
+            NB_iso_below_vs_nb_hscp.Fill(nb_below_iso,hscparticle.size())      
+            NB_iso_below_vs_nb_hscp_tight.Fill(nb_below_iso,len(HSCPVector))
             NB_non_phys_vs_nb_tower_passing.Fill(nb_non_phys,nb_tower_evt)
-
-
             CaloVectorAll.clear()
             NB_HSCP_vs_NBTOWER.Fill(hscparticle.size(),nb_tower_evt)
             nb_towers_cut_per_Event.Fill(nb_tower_evt)
-        
+
+
+
+    Eff_Nseeds_over_nseedshscp.Fill((tot_num_eff/tot_denom_eff)*100)
     hfile.Write()
-    print("There were in total : ", totnb_tower_evt , " seeds passing thresholds")
+
+    print("RAW efficiency based on thresholds ( ECAL > 2 MIP, HCAL > 2 MIP, ratio < 0.3 and ECAL + HCAL < 10 MIP) \n")
+    print(" Eff : ", (tot_num_eff/tot_denom_eff)*100, " %\n")
+
+    print("There were in total : ", totnb_tower_evt , " seeds passing thresholds \n")
 
     print("ON ALL CALO TOWERS \n")
     print("--------------- DIRECT GOOD EVENTS ---------------")
@@ -486,7 +510,7 @@ if __name__ == "__main__":
     print(nb_cdt_2by2[0], " were solo seed, ", nb_cdt_2by2[1], " were seeds with 1 neighbours not in the diagonal", nb_cdt_2by2[2], " were seeds with 2 adjacent neighbours, and ",nb_cdt_2by2[3], " were seeds with 3 neighbours in an L shape (4 possibility since 4 corners in 3 by 3)")
 
     print("--------------- BAD EVENTS WHERE WE HAVE TO CHOOSE  ---------------")
-    print(nb_cdt_out_2by2[1], " were seeds with 2 non-adjacent neighbours, pick the one with ratio ecal/hcal closer to initial seed, ", nb_cdt_out_2by2[2], " were seeds with 3 neighbours, where we have to chose (either 3 solo seeds, or 3 in a line or 2 adjacent and 1 not diagonal)")
+    print(nb_cdt_out_2by2[1], " were seeds with 2 non-adjacent neighbours, pick the one with ratio ecal/hcal closer to initial seed, ", nb_cdt_out_2by2[2], " were seeds with 3 neighbours, where we have to chose (either 3 solo seeds, or 3 in a line or 2 adjacent and 1 not diagonal)\n")
 
     print("ON HSCP MATCHED + ISO CALO TOWERS \n")
     print("--------------- DIRECT GOOD EVENTS ---------------")
