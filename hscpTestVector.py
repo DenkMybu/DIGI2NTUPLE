@@ -88,6 +88,19 @@ if __name__ == "__main__":
     NB_HSCP_vs_NBTOWER.GetYaxis().SetTitle("# tower per event")
 
 
+    NB_HSCP_vs_NBTOWER_isovar03 = TH2D("hscp_vs_tower_iso_03","nb hscp vs nb tower per event with iso var < 0.3", 15,0,15,25,0,25)
+    NB_HSCP_vs_NBTOWER_isovar03.GetXaxis().SetTitle("# hscp")
+    NB_HSCP_vs_NBTOWER_isovar03.GetYaxis().SetTitle("# tower per event with iso var < 0.3")
+
+
+    NB_cleanHSCP_vs_NBTOWER_isovar03 = TH2D("clean_hscp_vs_tower_iso_03","nb clean hscp (pt > 50) vs nb tower per event with iso var < 0.3", 15,0,15,25,0,25)
+    NB_cleanHSCP_vs_NBTOWER_isovar03.GetXaxis().SetTitle("# clean hscp")
+    NB_cleanHSCP_vs_NBTOWER_isovar03.GetYaxis().SetTitle("# tower per event with iso var < 0.3")
+
+
+
+
+
     NB_HSCP_vs_NBTOWER_isovar05 = TH2D("hscp_vs_tower_iso_05","nb hscp vs nb tower per event with iso var < 0.5", 15,0,15,25,0,25)
     NB_HSCP_vs_NBTOWER_isovar05.GetXaxis().SetTitle("# hscp")
     NB_HSCP_vs_NBTOWER_isovar05.GetYaxis().SetTitle("# tower per event with iso var < 0.5")
@@ -119,18 +132,17 @@ if __name__ == "__main__":
 
 
 
+    NB_iso_below_07_per_event = TH1F("nb_below_iso_07_per_event","nb seed < iso 0.7 per event", 7,0,6)
 
-    NB_iso_below_vs_nb_hscp_tight = TH2D("nb_below_iso_vs_nb_clean_hscp","nb seed < iso 0.7 vs nb tight hscp", 5,0,5,10,0,10)
-    NB_iso_below_vs_nb_hscp_tight.GetXaxis().SetTitle("# seed IsoVar < 0.7")
-    NB_iso_below_vs_nb_hscp_tight.GetYaxis().SetTitle("# clean HSCP")
+    NB_iso_below_05_per_event = TH1F("nb_below_iso_05_per_event","nb seed < iso 0.5 per event", 7,0,6)
+    NB_iso_below_03_per_event = TH1F("nb_below_iso_03_per_event","nb seed < iso 0.3 per event", 7,0,6)
+    NB_iso_below_015_per_event = TH1F("nb_below_iso_015_per_event","nb seed < iso 0.15 per event", 7,0,6)
 
-
-
-    NB_iso_below_per_event = TH1F("nb_below_iso_per_event","nb seed < iso 0.7 per event", 7,0,6)
 
     NB_iso_below_vs_nb_seed = TH2D("nb_below_iso_vs_nb_seed","nb seed < iso 0.7 vs nb seed", 8,0,8,15,0,15)
     NB_iso_below_vs_nb_seed.GetXaxis().SetTitle("# seed IsoVar < 0.7")
     NB_iso_below_vs_nb_seed.GetYaxis().SetTitle("# seed")
+
 
 
 
@@ -311,7 +323,8 @@ if __name__ == "__main__":
                         p_over_m_hscp.Fill(track.p()/1800)
                         for l in range(len(CaloVector)-1,0,-1):
                             if CaloVector[l][6] > 0:
-                                if CaloVector[l][5] > 0.6 and CaloVector[l][6] > 2.5 and (CaloVector[l][5] / CaloVector[l][6]) < 0.3 and (CaloVector[l][5] + CaloVector[l][6]) < 15:
+                                p = PassThreshold("any",min_mip,CaloVector[l][5],CaloVector[l][6])
+                                if p:
                                     dreg = deltaR(deltaR2(CaloVector[l][4],CaloVector[l][3],track.eta(),track.phi()))
                                     nb_tower_hscp_evt+=1
                                     if dreg < mindreg:
@@ -396,12 +409,13 @@ if __name__ == "__main__":
 
         if CaloVectorAll:
             nb_non_phys = 0
-            nb_below_iso, nb_below_iso_05 = 0,0
+            nb_below_iso, nb_below_iso_05, nb_below_iso_03,nb_below_iso_015 = 0,0,0,0
             for l in range(len(CaloVectorAll)-1,0,-1):
                 cpt = True
                 #print(len(CaloVectorAll))
                 if CaloVectorAll[l][6] > 0:
-                    if CaloVectorAll[l][5] > 0.6 and CaloVectorAll[l][6] > 2.5 and (CaloVectorAll[l][5] / CaloVectorAll[l][6]) < 0.3 and (CaloVectorAll[l][5] + CaloVectorAll[l][6]) < 15:
+                    p_all = PassThreshold("any",min_mip,CaloVectorAll[l][5],CaloVectorAll[l][6])
+                    if p_all:
                         nb_tower_evt , totnb_tower_evt, nb_denom_eff = nb_tower_evt+1, totnb_tower_evt+1, nb_denom_eff+1
                         tot_denom_eff += 1
                         ratio_ecal_hcal_seeds.Fill(CaloVectorAll[l][5] / CaloVectorAll[l][6])
@@ -489,19 +503,28 @@ if __name__ == "__main__":
                             if nb_ngh_below != 8:
                                 Iso_var = sum_all_ngh_below/(8-nb_ngh_below)
                                 Sum_Energy_8_neighbours_threshold.Fill(Iso_var)
+                                
+                                if Iso_var < 0.15:
+                                    nb_below_iso_015 += 1
+                                if Iso_var < 0.3:
+                                    nb_below_iso_03 += 1
                                 if Iso_var < 0.5:
                                     nb_below_iso_05 += 1
+                                    min_dr_nd = 999999
+                                    for k in range(len(HSCPVector)-1,0,-1):
+                                        dr_nd = deltaR(deltaR2(new_eta,new_phi,HSCPVector[k][2],HSCPVector[k][1]))
+                                        if dr_nd < min_dr_nd:
+                                            min_dr_nd = dr_nd
+                                            cdt_nd = HSCPVector[k]
+
+                                    dr_min_iso_hscp_tower.Fill(min_dr_nd)
+                                    if min_dr_nd < 0.3:
+                                        HSCPVector.remove(cdt_nd)
+
                                 if Iso_var < 0.7:
                                     min_dr_end = 999999
                                     nb_below_iso+=1
-                                    for k in range(hscparticle.size()):
-                                        if hscparticle[k].trackRef().isNonnull():
-                                            track_end = hscparticle[k].trackRef()
-                                            dr_end = deltaR(deltaR2(new_eta,new_phi,track_end.eta(),track_end.phi()))
-                                            if dr_end < min_dr_end:
-                                                min_dr_end = dr_end
-    
-                                    dr_min_iso_hscp_tower.Fill(min_dr_end)
+
     
     
                             else:
@@ -510,15 +533,21 @@ if __name__ == "__main__":
 
 
             NB_iso_below_vs_nb_seed.Fill(nb_below_iso,nb_tower_evt)
-            NB_iso_below_per_event.Fill(nb_below_iso)
+            NB_iso_below_07_per_event.Fill(nb_below_iso)
+            NB_iso_below_05_per_event.Fill(nb_below_iso_05)
+            NB_iso_below_03_per_event.Fill(nb_below_iso_03)
+            NB_iso_below_015_per_event.Fill(nb_below_iso_015)
 
-            NB_iso_below_vs_nb_hscp_tight.Fill(nb_below_iso,len(HSCPVector))
+
             NB_non_phys_vs_nb_tower_passing.Fill(nb_non_phys,nb_tower_evt)
             CaloVectorAll.clear()
 
             NB_cleanHSCP_vs_NBTOWER_isovar07.Fill(len(HSCPVector),nb_below_iso)
             NB_cleanHSCP_vs_NBTOWER_isovar05.Fill(len(HSCPVector),nb_below_iso_05)
+            NB_cleanHSCP_vs_NBTOWER_isovar03.Fill(len(HSCPVector),nb_below_iso_03)
 
+
+            NB_HSCP_vs_NBTOWER_isovar03.Fill(hscparticle.size(),nb_below_iso_03)
             NB_HSCP_vs_NBTOWER_isovar05.Fill(hscparticle.size(),nb_below_iso_05)
             NB_HSCP_vs_NBTOWER_isovar07.Fill(hscparticle.size(),nb_below_iso)
             NB_HSCP_vs_NBTOWER.Fill(hscparticle.size(),nb_tower_evt)

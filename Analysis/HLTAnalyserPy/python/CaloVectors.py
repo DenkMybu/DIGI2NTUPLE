@@ -39,7 +39,7 @@ def Create3by3MatrixLoop(CaloVector,id_central_phi,id_central_eta,calo,nbmip):
     idx_towers_above = [] #we go tower #, idx phi and idx eta
     if CaloVector:
         for i in range(len(CaloVector)):
-            a = PassThreshold('ecal',nbmip,CaloVector[i][5],CaloVector[i][6])
+            a = PassThreshold('ecal',1.5,CaloVector[i][5],CaloVector[i][6])
 
             if calo == 'both':
                 if CaloVector[i][1] == id_central_phi + 1:
@@ -449,7 +449,7 @@ def FindTrueSeed(CaloVector,id_central_phi,id_central_eta,ratio_energy,calo,phi_
     new_highest.append(((abs(0.2 - ratio_energy)),id_central_phi,id_central_eta,ratio_energy,phi_central,eta_central))
     if CaloVector:
         for i in range(len(CaloVector)):
-            a = PassThreshold('ecal',2,CaloVector[i][5],CaloVector[i][6])
+            a = PassThreshold('ecal',1.5,CaloVector[i][5],CaloVector[i][6])
             if calo == 'both':
                 if CaloVector[i][1] == id_central_phi + 1:
                     if CaloVector[i][2] == id_central_eta - 1:
