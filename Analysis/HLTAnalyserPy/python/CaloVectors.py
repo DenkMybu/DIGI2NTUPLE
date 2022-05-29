@@ -34,12 +34,12 @@ def PassThreshold(subsystem,threshold,emEnergy,hadEnergy):
         return False
 
 
-def Create3by3MatrixLoop(CaloVector,id_central_phi,id_central_eta,calo,nbmip):
+def Create3by3MatrixLoop(CaloVector,id_central_phi,id_central_eta,calo,nbmipngh):
     nb_ngh_all,nb_ngh_below,nb_ngh_above,sum_emhad = 0,0,0,0
     idx_towers_above = [] #we go tower #, idx phi and idx eta
     if CaloVector:
         for i in range(len(CaloVector)):
-            a = PassThreshold('ecal',1.5,CaloVector[i][5],CaloVector[i][6])
+            a = PassThreshold('ecal',nbmipngh,CaloVector[i][5],CaloVector[i][6])
 
             if calo == 'both':
                 if CaloVector[i][1] == id_central_phi + 1:
