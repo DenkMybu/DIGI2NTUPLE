@@ -80,11 +80,11 @@ if __name__ == "__main__":
     Number_non_physical_event = TH1F("Number_tower_more_3_ngh","# of non-physical event",2,0,2)
     
 
-    Number_HSCP_2by2_max_event = TH1F('nb_neighbours_within_2by2_max_event_matched_HSCP','nb HSCP',10,0,10)
-    Nb_neighbour_within_2by2 = TH1F('nb_neighbours_within_2by2_all','# neighbours within 2x2 matrix',4,0,4)
 
 
     Number_neighbours_per_seed = TH1F('nb_neighbours_per_seed','# neighbours per seed',9,0,9)
+    Nb_neighbour_within_2by2 = TH1F('nb_neighbours_within_2by2_all','# neighbours within 2x2 matrix',4,0,4)
+    Number_HSCP_2by2_max_event = TH1F('nb_neighbours_within_2by2_max_event_matched_HSCP','nb HSCP',10,0,10)
 
  
  
@@ -361,7 +361,7 @@ if __name__ == "__main__":
 
                             elif len(id_list_hscp_iso) == 1 or len(id_list_hscp_iso) == 2 or len(id_list_hscp_iso) == 3:
                                 nb_hscp_evt+=1
-                                Number_HSCP_2by2_max_event.Fill(len(id_list_hscp_iso)+1) 
+                                Number_HSCP_2by2_max_event.Fill(len(id_list_hscp_iso)) 
                                 sq_oi_hscp = IsInMatrix(id_list_hscp_iso,idx_phi_hscp_iso,idx_eta_hscp_iso)
                                 if sq_oi_hscp == 1:
                                     nb_cdt_2by2_hscp_iso[len(id_list_hscp_iso)] +=1
@@ -445,18 +445,6 @@ if __name__ == "__main__":
 
                         Number_neighbours_per_seed.Fill((nb_ngh_above+nb_ngh_below))
                         min_dr_hscp = 999999
-                        '''
-                        for k in range(len(HSCPVector)-1,0,-1):
-                            dr_hscp = deltaR(deltaR2(new_eta,new_phi,HSCPVector[k][2],HSCPVector[k][1]))
-                            if dr_hscp < min_dr_hscp:
-                                min_dr_hscp = dr_hscp
-                                hscp_cdt = HSCPVector[k]
-
-                        if min_dr_hscp < 0.3:
-                            nb_num_eff +=1
-                            tot_num_eff += 1
-                            HSCPVector.remove(hscp_cdt)
-                        '''
 
                         if len(id_list) == 0:
                             nb_cdt_2by2[0] += 1
@@ -510,6 +498,17 @@ if __name__ == "__main__":
                         if cpt:
                             if nb_ngh_above != 8:
                                 Iso_var = sum_all_ngh_below/(8-nb_ngh_above)
+
+                                if Iso_var < 0.15:
+                                    nb_below_iso_015 += 1
+                                if Iso_var < 0.3:
+                                    nb_below_iso_03 += 1
+                                if Iso_var < 0.5:
+                                    nb_below_iso_05 += 1
+                                    nb_seed_iso += 1 
+                                if Iso_var < 0.7:
+                                    nb_below_iso+=1
+
                                 min_dr_nd = 999999
                                 for k in range(len(GEN_HSCPVector)-1,0,-1):
                                     dr_nd = deltaR(deltaR2(new_eta,new_phi,GEN_HSCPVector[k][2],GEN_HSCPVector[k][1]))
@@ -527,30 +526,6 @@ if __name__ == "__main__":
                                     Sum_Energy_8_neighbours_threshold.Fill(Iso_var)
 
 
-                                if Iso_var < 0.15:
-                                    nb_below_iso_015 += 1
-                                if Iso_var < 0.3:
-                                    nb_below_iso_03 += 1
-                                if Iso_var < 0.5:
-                                    nb_below_iso_05 += 1
-                                    nb_seed_iso += 1 
-                                    '''
-                                    for k in range(len(HSCPVector)-1,0,-1):
-                                        dr_nd = deltaR(deltaR2(new_eta,new_phi,HSCPVector[k][2],HSCPVector[k][1]))
-                                        if dr_nd < min_dr_nd:
-                                            min_dr_nd = dr_nd
-                                            cdt_nd = HSCPVector[k]
-
-                                    dr_min_iso_hscp_tower.Fill(min_dr_nd)
-                                    if min_dr_nd < 0.3:
-                                        nb_seed_iso_matched += 1
-                                        HSCPVector.remove(cdt_nd)
-                                    '''
-                                if Iso_var < 0.7:
-                                    nb_below_iso+=1
-
-    
-    
                             else:
                                 Sum_Energy_8_neighbours_threshold.Fill(-1)
 
