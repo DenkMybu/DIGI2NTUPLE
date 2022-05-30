@@ -173,18 +173,7 @@ if __name__ == "__main__":
 
     #============ END CALO TOWER HISTOS ===========
 
-
-
-
-
-
-
     #============ GENERAL HISTOS ===========
-
-
-    
-
-
 
     p_over_m_hscp = TH1F('P_over_M_hscp','ratio p/m = βγ for HSCPs',100,0,3)
 
@@ -297,10 +286,11 @@ if __name__ == "__main__":
         indices = [i for i, x in enumerate(all_pdg_id) if x in idx_pdg_ch]
         GEN_HSCPVector = []
         for p in range(len(indices)):
+            print("Found HSCP with charge ", GenParticlesMC[indices[p]].charge(), " and momentum : ",GenParticlesMC[indices[p]].p())
             p_over_m_hscp.Fill(GenParticlesMC[indices[p]].p()/1800)
             GEN_HSCPVector.append((indices[p],GenParticlesMC[indices[p]].phi(),GenParticlesMC[indices[p]].eta()))
               
-
+        all_pdg_id.clear()
         CaloVector = []
         CaloVectorAll = []    
         if CaloTowers is not None:
