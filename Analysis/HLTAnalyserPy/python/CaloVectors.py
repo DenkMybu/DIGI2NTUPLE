@@ -28,7 +28,7 @@ def SetActivityAround(radius_idx_map,neighboor_cells,hist):
 def PassThreshold(subsystem,threshold,emEnergy,hadEnergy):
     ecalmip,hcalmip = 0.27*threshold,1.25*threshold
 
-    if emEnergy > ecalmip and hadEnergy > hcalmip and (emEnergy/hadEnergy) < 0.3 and (emEnergy/hadEnergy) > 0 and (emEnergy+hadEnergy) < 15:
+    if emEnergy > ecalmip and hadEnergy > hcalmip and (emEnergy/hadEnergy) < 0.4 and (emEnergy/hadEnergy) > 0 and (emEnergy+hadEnergy) < 15:
         return True
     else:
         return False
@@ -443,10 +443,10 @@ def FindAdjacentPair(phi1,eta1,phi2,eta2,phi_central,eta_central):
     else:
         return 999999
 
-def FindTrueSeed(CaloVector,id_central_phi,id_central_eta,ratio_energy,calo,phi_central,eta_central):
+def FindTrueSeed(CaloVector,id_central_phi,id_central_eta,ratio_energy,calo,phi_central,eta_central,indice):
     #print("Find true seed called, id_phi : ", id_central_phi, " , id_eta :", id_central_eta, " , sum energy : ", sum_energy)
     new_highest = []
-    new_highest.append(((abs(0.2 - ratio_energy)),id_central_phi,id_central_eta,ratio_energy,phi_central,eta_central))
+    new_highest.append(((abs(0.2 - ratio_energy)),id_central_phi,id_central_eta,ratio_energy,phi_central,eta_central,indice))
     if CaloVector:
         for i in range(len(CaloVector)):
             a = PassThreshold('ecal',1.5,CaloVector[i][5],CaloVector[i][6])
@@ -454,38 +454,38 @@ def FindTrueSeed(CaloVector,id_central_phi,id_central_eta,ratio_energy,calo,phi_
                 if CaloVector[i][1] == id_central_phi + 1:
                     if CaloVector[i][2] == id_central_eta - 1:
                         if a:
-                            new_highest.append((abs(0.2 - (CaloVector[i][5]/CaloVector[i][6])),CaloVector[i][1],CaloVector[i][2],CaloVector[i][5]/CaloVector[i][6],CaloVector[i][3],CaloVector[i][4]))
+                            new_highest.append((abs(0.2 - (CaloVector[i][5]/CaloVector[i][6])),CaloVector[i][1],CaloVector[i][2],CaloVector[i][5]/CaloVector[i][6],CaloVector[i][3],CaloVector[i][4],i))
 
 
                     elif CaloVector[i][2] == id_central_eta:
                         if a:
-                            new_highest.append((abs(0.2 - (CaloVector[i][5]/CaloVector[i][6])),CaloVector[i][1],CaloVector[i][2],CaloVector[i][5]/CaloVector[i][6],CaloVector[i][3],CaloVector[i][4]))
+                            new_highest.append((abs(0.2 - (CaloVector[i][5]/CaloVector[i][6])),CaloVector[i][1],CaloVector[i][2],CaloVector[i][5]/CaloVector[i][6],CaloVector[i][3],CaloVector[i][4],i))
 
                     elif CaloVector[i][2] == id_central_eta + 1:
                         if a:
-                            new_highest.append((abs(0.2 - (CaloVector[i][5]/CaloVector[i][6])),CaloVector[i][1],CaloVector[i][2],CaloVector[i][5]/CaloVector[i][6],CaloVector[i][3],CaloVector[i][4]))
+                            new_highest.append((abs(0.2 - (CaloVector[i][5]/CaloVector[i][6])),CaloVector[i][1],CaloVector[i][2],CaloVector[i][5]/CaloVector[i][6],CaloVector[i][3],CaloVector[i][4],i))
 
                 elif CaloVector[i][1] == id_central_phi:
                     if CaloVector[i][2] == id_central_eta - 1:
                         if a:
-                            new_highest.append((abs(0.2 - (CaloVector[i][5]/CaloVector[i][6])),CaloVector[i][1],CaloVector[i][2],CaloVector[i][5]/CaloVector[i][6],CaloVector[i][3],CaloVector[i][4]))
+                            new_highest.append((abs(0.2 - (CaloVector[i][5]/CaloVector[i][6])),CaloVector[i][1],CaloVector[i][2],CaloVector[i][5]/CaloVector[i][6],CaloVector[i][3],CaloVector[i][4],i))
 
                     elif CaloVector[i][2] == id_central_eta + 1:
                         if a:
-                            new_highest.append((abs(0.2 - (CaloVector[i][5]/CaloVector[i][6])),CaloVector[i][1],CaloVector[i][2],CaloVector[i][5]/CaloVector[i][6],CaloVector[i][3],CaloVector[i][4]))
+                            new_highest.append((abs(0.2 - (CaloVector[i][5]/CaloVector[i][6])),CaloVector[i][1],CaloVector[i][2],CaloVector[i][5]/CaloVector[i][6],CaloVector[i][3],CaloVector[i][4],i))
 
                 elif CaloVector[i][1] == id_central_phi - 1:
                     if CaloVector[i][2] == id_central_eta - 1:
                         if a:
-                            new_highest.append((abs(0.2 - (CaloVector[i][5]/CaloVector[i][6])),CaloVector[i][1],CaloVector[i][2],CaloVector[i][5]/CaloVector[i][6],CaloVector[i][3],CaloVector[i][4]))
+                            new_highest.append((abs(0.2 - (CaloVector[i][5]/CaloVector[i][6])),CaloVector[i][1],CaloVector[i][2],CaloVector[i][5]/CaloVector[i][6],CaloVector[i][3],CaloVector[i][4],i))
 
                     elif CaloVector[i][2] == id_central_eta:
                         if a:
-                            new_highest.append((abs(0.2 - (CaloVector[i][5]/CaloVector[i][6])),CaloVector[i][1],CaloVector[i][2],CaloVector[i][5]/CaloVector[i][6],CaloVector[i][3],CaloVector[i][4]))
+                            new_highest.append((abs(0.2 - (CaloVector[i][5]/CaloVector[i][6])),CaloVector[i][1],CaloVector[i][2],CaloVector[i][5]/CaloVector[i][6],CaloVector[i][3],CaloVector[i][4],i))
 
                     elif CaloVector[i][2] == id_central_eta + 1:
                         if a:
-                            new_highest.append((abs(0.2 - (CaloVector[i][5]/CaloVector[i][6])),CaloVector[i][1],CaloVector[i][2],CaloVector[i][5]/CaloVector[i][6],CaloVector[i][3],CaloVector[i][4]))
+                            new_highest.append((abs(0.2 - (CaloVector[i][5]/CaloVector[i][6])),CaloVector[i][1],CaloVector[i][2],CaloVector[i][5]/CaloVector[i][6],CaloVector[i][3],CaloVector[i][4],i))
 
 
 
@@ -494,12 +494,12 @@ def FindTrueSeed(CaloVector,id_central_phi,id_central_eta,ratio_energy,calo,phi_
     min_idx = new_highest.index(min_val)
 
     if min_idx == 0:
-        return (new_highest[min_idx][1],new_highest[0][2],new_highest[0][3],new_highest[min_idx][4],new_highest[min_idx][5])
+        return (new_highest[min_idx][1],new_highest[0][2],new_highest[0][3],new_highest[min_idx][4],new_highest[min_idx][5],new_highest[min_idx][6])
 
-    else:
-        new_id_phi,new_id_eta,new_ratio_energy,new_phi,new_eta = min(new_highest)[1],min(new_highest)[2],min(new_highest)[3],min(new_highest)[4],min(new_highest)[5]
+    else: 
+        new_id_phi,new_id_eta,new_ratio_energy,new_phi,new_eta,new_indice = min(new_highest)[1],min(new_highest)[2],min(new_highest)[3],min(new_highest)[4],min(new_highest)[5],min(new_highest)[6]
         #print("Returning new indexes -> phi :",new_id_phi, " , eta : ", new_id_eta, " energy : ", new_sum_energy)
-        return (new_id_phi,new_id_eta,new_ratio_energy,new_phi,new_eta)
+        return (new_id_phi,new_id_eta,new_ratio_energy,new_phi,new_eta,new_indice)
 
 
 
