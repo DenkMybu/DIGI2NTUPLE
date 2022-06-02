@@ -25,21 +25,22 @@ def SetActivityAround(radius_idx_map,neighboor_cells,hist):
                 nb_wrong_neighboor+=1
     return nb_wrong_neighboor
 
-def PassThreshold(subsystem,threshold,emEnergy,hadEnergy):
+def PassThreshold(subsystem,threshold,emEnergy,hadEnergy,sum_cut):
     ecalmip,hcalmip = 0.27*threshold,1.25*threshold
+    sum_mip = 1.52*sum_cut
 
-    if emEnergy > ecalmip and hadEnergy > hcalmip and (emEnergy/hadEnergy) < 0.4 and (emEnergy/hadEnergy) > 0 and (emEnergy+hadEnergy) < 15:
+    if (emEnergy > ecalmip) and (hadEnergy > hcalmip) and ((emEnergy/hadEnergy) < 0.4) and ((emEnergy/hadEnergy) > 0) and ((emEnergy+hadEnergy) < sum_mip):
         return True
     else:
         return False
 
 
-def Create3by3MatrixLoop(CaloVector,id_central_phi,id_central_eta,calo,nbmipngh):
+def Create3by3MatrixLoop(CaloVector,id_central_phi,id_central_eta,calo,nbmipngh,sum_cut):
     nb_ngh_all,nb_ngh_below,nb_ngh_above,sum_emhad = 0,0,0,0
     idx_towers_above = [] #we go tower #, idx phi and idx eta
     if CaloVector:
         for i in range(len(CaloVector)):
-            a = PassThreshold('ecal',nbmipngh,CaloVector[i][5],CaloVector[i][6])
+            a = PassThreshold('ecal',nbmipngh,CaloVector[i][5],CaloVector[i][6],sum_cut)
 
             if calo == 'both':
                 if CaloVector[i][1] == id_central_phi + 1:
@@ -483,13 +484,13 @@ def FindAdjacentPair(phi1,eta1,phi2,eta2,phi_central,eta_central):
     else:
         return 999999
 
-def FindTrueSeed(CaloVector,id_central_phi,id_central_eta,ratio_energy,calo,phi_central,eta_central,indice):
+def FindTrueSeed(CaloVector,id_central_phi,id_central_eta,ratio_energy,calo,phi_central,eta_central,indice,sum_cut,nbmipngh):
     #print("Find true seed called, id_phi : ", id_central_phi, " , id_eta :", id_central_eta, " , sum energy : ", sum_energy)
     new_highest = []
     new_highest.append(((abs(0.2 - ratio_energy)),id_central_phi,id_central_eta,ratio_energy,phi_central,eta_central,indice))
     if CaloVector:
         for i in range(len(CaloVector)):
-            a = PassThreshold('ecal',1.5,CaloVector[i][5],CaloVector[i][6])
+            a = PassThreshold('ecal',nbmipngh,CaloVector[i][5],CaloVector[i][6],sum_cut)
             if calo == 'both':
                 if CaloVector[i][1] == id_central_phi + 1:
                     if CaloVector[i][2] == id_central_eta - 1:
@@ -1126,6 +1127,17 @@ def Preselection(genpart):
         return 1
     else:
         return 0
+
+def testDeltaR2(eta1,phi1,eta2,phi2):  #it is done like that in the CommonFunctions.h from SUSYBSMANALYSIS package
+    deta = eta1 - eta2
+    dphi = phi1 - phi2
+    while dphi > math.pi:
+        dphi -= 2 * math.pi
+    while dphi <= -math.pi:
+        dphi += 2 * math.pi
+    return math.sqrt((deta*deta + dphi*dphi))
+
+
 
 def deltaR2(eta1,phi1,eta2,phi2):
     diffphi = abs(phi1-phi2)

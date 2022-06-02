@@ -14,7 +14,7 @@ import ctypes
 from DataFormats.FWLite import Events, Handle
 from Analysis.HLTAnalyserPy.EvtData import EvtData, EvtHandles, add_product,get_objs
 
-from Analysis.HLTAnalyserPy.CaloVectors import SetBin,FillHist,ActivityTab,SetActivityAround,PassThreshold,CreateCaloMap,Get12NeighboursLoop,CheckHighEMatrix,deltaR2,deltaR
+from Analysis.HLTAnalyserPy.CaloVectors import SetBin,FillHist,ActivityTab,SetActivityAround,PassThreshold,CreateCaloMap,Get12NeighboursLoop,CheckHighEMatrix,deltaR2,deltaR,testDeltaR2
 
 from Analysis.HLTAnalyserPy.CaloVectors import Create3by3MatrixLoop,CreateCaloTabLoop,FindTrueSeed,FindAdjacentPair,IsInMatrix,FurthestInRatio,FillStepByStep,FillPdgIds,FindAllHSCP,FindChargedHSCP,CountIsoNum
 
@@ -39,6 +39,7 @@ if __name__ == "__main__":
     parser.add_argument('minmipseed',default=1,help='how many MIP will the candidate leave in both CAL')
     parser.add_argument('nbmaps',default=20,help='how many eta-phi maps you want')
     parser.add_argument('minmipngh',default=1.5,help='minimal energy deposit inside neighbouring calo towers (in MIPs)')
+    parser.add_argument('maxsumcut',default=10,help='maximal ecal+hcal deposit inside calo towers (in MIPs)')
     parser.add_argument('etacut',default=1,help='if we ask for a cut on calo towers eta')
     parser.add_argument('reversecheck',default=0,help='if we want a reverse check between all towers-hscp dr < 0.1')
     args = parser.parse_args()
@@ -49,10 +50,11 @@ if __name__ == "__main__":
     EventToStudy = sys.argv[4]
     min_mip = float(sys.argv[5])
     min_mip_ngh = float(sys.argv[7])
-    ask_cut = bool(sys.argv[8])
-    reverse_bool = bool(sys.argv[9])
+    max_sum_mip = float(sys.argv[8])
+    ask_cut = bool(sys.argv[9])
+    reverse_bool = bool(sys.argv[10])
 
-    print("We will study CaloTowers above ",min_mip, "MIP , and their neighbours above ", min_mip_ngh, " MIP")
+    print("We will study CaloTowers above ",min_mip, "MIP , and their neighbours above ", min_mip_ngh, " MIP , and sum (ECAL + HCAL) < ",max_sum_mip, " MIP")
 
     #============ CALO TOWER HISTOS ===========
 
@@ -333,7 +335,7 @@ if __name__ == "__main__":
         Number_CH_GEN_HSCP_per_event.Fill(generator_hscp_ch)
  
         indices = [i for i, x in enumerate(all_pdg_id) if x in idx_pdg_ch]
-
+       
 
         GEN_HSCPVector = []
         for p in range(len(indices)):
@@ -341,13 +343,13 @@ if __name__ == "__main__":
             GEN_HSCPVector.append((indices[p],GenParticlesMC[indices[p]].phi(),GenParticlesMC[indices[p]].eta()))
 
         tst_nb_dr01 = 0
-
         if reverse_bool:             
             for m in range(len(GEN_HSCPVector)):
                 if CaloTowers is not None:
                     for i in range(CaloTowers.size()):
                         dr2 = deltaR(deltaR2(CaloTowers[i].eta(),CaloTowers[i].phi(),GEN_HSCPVector[m][2],GEN_HSCPVector[m][1]))
                         if dr2 < 0.1:
+                            #print("Found 1 matching tower with hscp dr < 0.1 : em energy = ","%.2f" % CaloTowers[i].emEnergy(), " ,had energy =  ","%.2f" % CaloTowers[i].hadEnergy(), ", sum = ","%.2f" % (CaloTowers[i].emEnergy()+CaloTowers[i].hadEnergy()))
                             tst_nb_dr01+=1
                             E_Ecal_dr01.Fill(CaloTowers[i].emEnergy())
                             E_Hcal_dr01.Fill(CaloTowers[i].hadEnergy())
@@ -511,29 +513,32 @@ if __name__ == "__main__":
 
                     cpt = True
                     if CaloVectorAll[l][6] > 0:
-                        p_all = PassThreshold("any",min_mip,CaloVectorAll[l][5],CaloVectorAll[l][6])
+                        p_all = PassThreshold("any",min_mip,CaloVectorAll[l][5],CaloVectorAll[l][6],max_sum_mip)
                         if p_all:
                             nb_tower_evt , totnb_tower_evt, nb_denom_eff, tot_denom_eff = nb_tower_evt+1, totnb_tower_evt+1, nb_denom_eff+1, tot_denom_eff+1
                             ratio_ecal_hcal_seeds.Fill(CaloVectorAll[l][5] / CaloVectorAll[l][6])
     
                             idx_phi,idx_eta,emEnergy,hadenergy,phi,eta,index = CaloVectorAll[l][1], CaloVectorAll[l][2],CaloVectorAll[l][5],CaloVectorAll[l][6],CaloVectorAll[l][3],CaloVectorAll[l][4],l
-                            new_idx_phi,new_idx_eta,new_ratio_energy,new_phi,new_eta,new_index = FindTrueSeed(CaloVectorAll,idx_phi,idx_eta,(emEnergy/hadenergy),"both",phi,eta,index)
+                            new_idx_phi,new_idx_eta,new_ratio_energy,new_phi,new_eta,new_index = FindTrueSeed(CaloVectorAll,idx_phi,idx_eta,(emEnergy/hadenergy),"both",phi,eta,index,max_sum_mip,min_mip)
                             all_nb_shift=0
                             while ((new_idx_phi != idx_phi) or (new_idx_eta != idx_eta)):
                                 idx_phi,idx_eta,phi,eta,index = new_idx_phi,new_idx_eta,new_phi,new_eta,new_index
-                                new_idx_phi,new_idx_eta,new_ratio_energy,new_phi,new_eta,new_index = FindTrueSeed(CaloVectorAll,idx_phi,idx_eta,new_ratio_energy,"both",new_phi,new_eta,new_index)
+                                new_idx_phi,new_idx_eta,new_ratio_energy,new_phi,new_eta,new_index = FindTrueSeed(CaloVectorAll,idx_phi,idx_eta,new_ratio_energy,"both",new_phi,new_eta,new_index,max_sum_mip,min_mip)
                                 all_nb_shift +=1
     
         
-                            id_list,nb_all_ngh,nb_ngh_below,nb_ngh_above,sum_all_ngh_below = Create3by3MatrixLoop(CaloVectorAll,idx_phi,idx_eta,'both',min_mip_ngh)
+                            id_list,nb_all_ngh,nb_ngh_below,nb_ngh_above,sum_all_ngh_below = Create3by3MatrixLoop(CaloVectorAll,idx_phi,idx_eta,'both',min_mip_ngh,max_sum_mip)
                             sq_oi = 5
                             nb_towers_8_above_trh.Fill(nb_ngh_above)
                             Number_neighbours_per_seed.Fill((nb_ngh_above+nb_ngh_below))
                             Number_shift_seedOI.Fill(all_nb_shift)    
-    
+                            
+                              
+                            CaloVectorAll[new_index] = ((-999999,-999999,-999999,-999999,-999999,0,0))
+
                             if len(id_list) == 0:
                                 nb_cdt_2by2[0] += 1
-                                CaloVectorAll[new_index] = ((0,0,0,0,0,0,0))
+                                #CaloVectorAll[new_index] = ((-999999,-999999,-999999,-999999,-999999,-999999,-999999))
 
                             elif len(id_list) == 1 or len(id_list) == 2 or len(id_list) == 3:
                                 sq_oi = IsInMatrix(id_list,idx_phi,idx_eta)
@@ -543,7 +548,7 @@ if __name__ == "__main__":
                                     nb_towers_8_below_trh.Fill(nb_ngh_below)
                                     nb_towers_8_all_trh.Fill(nb_ngh_below + nb_ngh_above)
                                     for o in range(len(id_list)): 
-                                        CaloVectorAll[id_list[o][0]] = ((0,0,0,0,0,0,0))
+                                        CaloVectorAll[id_list[o][0]] = ((-999999,-999999,-999999,-999999,-999999,0,0))
                                         #CaloVectorAll.remove((id_list[o]))
                              
                                 else:
@@ -560,7 +565,7 @@ if __name__ == "__main__":
                                             nb_ngh_below +=1
     
                                         if len(best_cdt) != 0:
-                                            CaloVectorAll[best_cdt[0][0]] = ((0,0,0,0,0,0,0))
+                                            CaloVectorAll[best_cdt[0][0]] = ((-999999,-999999,-999999,-999999,-999999,0,0))
                                             #CaloVectorAll.remove(best_cdt[0])
     
                                     elif len(id_list) == 3:
@@ -575,7 +580,7 @@ if __name__ == "__main__":
                                         if len(best_cdt_3) != 0:
                                             for i in range(len(best_cdt_3)):
                                                 #CaloVectorAll.remove((best_cdt_3[i]))
-                                                CaloVectorAll[best_cdt_3[i][0]] = ((0,0,0,0,0,0,0))
+                                                CaloVectorAll[best_cdt_3[i][0]] = ((-999999,-999999,-999999,-999999,-999999,0,0))
     
                             else:
                                 cpt = False
@@ -585,9 +590,11 @@ if __name__ == "__main__":
                             if cpt:
                                 if nb_ngh_above != 8:
                                     Iso_var = sum_all_ngh_below/(8-nb_ngh_above)
+                                    #print("CaloTower ", l , " after ",all_nb_shift , " shifts")
+                                    #print("Computing iso var for seed",new_index ," id phi : ",idx_phi ," and id eta : ",idx_eta ," with", (8-nb_ngh_above), " neighbours outside thresholds, their sum = ","%.2f" % sum_all_ngh_below, " iso = ", Iso_var)
                                     CountIsoNum(Iso_var,nb_belo_iso_tab)
 
-                                    if Iso_var < 0.5:
+                                    if Iso_var < 1:
                                         nb_seed_iso += 1 
     
                                     min_dr_nd = 999999
@@ -612,6 +619,7 @@ if __name__ == "__main__":
     
      
                 if generator_hscp_ch == 2:
+
                     nb_matched_seed_2_charged.Fill(nb_matched_pe)
                 if generator_hscp_ch == 1:
                     nb_matched_seed_1_charged.Fill(nb_matched_pe)
@@ -650,19 +658,34 @@ if __name__ == "__main__":
     
                 nb_towers_cut_per_Event.Fill(nb_tower_evt)
 
+
+
+        GEN_HSCPVector.clear()
+
+
+
+
+
+
+    # END OF LOOP ON EVENTS #
+
     for i in range(0,6):
         step_by_step_tower.SetBinContent(i+1,nb_tower_evt_cut[i])
         step_by_step_tower.GetXaxis().SetBinLabel(step_by_step_tower.GetXaxis().FindBin(i),str(ListCuts[i]))
 
-    Eff_Nseeds_over_nseedshscp.Fill((nb_seed_iso_matched/nb_seed_iso)*100)
+    if nb_seed_iso: 
+        Eff_Nseeds_over_nseedshscp.Fill((nb_seed_iso_matched/nb_seed_iso)*100)
+
     hfile.Write()
 
-    print("We studied CaloTowers above ",min_mip, "MIP , and their neighbours above ", min_mip_ngh, " MIP")
+    print("We studied CaloTowers above ",min_mip, "MIP , and their neighbours above ", min_mip_ngh, " MIP , and sum (ECALL + HCAL) <",max_sum_mip, " MIP")
     print("There were in total : ", totnb_tower_evt , " seeds passing thresholds \n")
-  
-    print("Efficiency (nb charged hscp/nb seed) = ",nb_ch_hscp,"/",totnb_tower_evt, " = " ,(nb_ch_hscp/totnb_tower_evt)*100, " %")
-    print("Efficiency (nb matched seed/nb charged hscp) = ",nb_matched_seed, "/",nb_ch_hscp, " = " ,(nb_matched_seed/nb_ch_hscp)*100, " %")
-    print("Now efficiency (nb matched seed / nb seed) = ",nb_matched_seed, "/", totnb_tower_evt," = ", (nb_matched_seed/totnb_tower_evt)*100 , " %")
+ 
+    if totnb_tower_evt: 
+        print("Efficiency (nb charged hscp/nb seed) = ",nb_ch_hscp,"/",totnb_tower_evt, " = " ,(nb_ch_hscp/totnb_tower_evt)*100, " %")
+        print("Now efficiency (nb matched seed / nb seed) = ",nb_matched_seed, "/", totnb_tower_evt," = ", (nb_matched_seed/totnb_tower_evt)*100 , " %")
+    if nb_ch_hscp:
+        print("Efficiency (nb matched seed/nb charged hscp) = ",nb_matched_seed, "/",nb_ch_hscp, " = " ,(nb_matched_seed/nb_ch_hscp)*100, " %")
 
 
     print("ON ALL CALO TOWERS \n")
