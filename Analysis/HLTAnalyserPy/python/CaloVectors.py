@@ -130,7 +130,6 @@ def Create3by3MatrixLoop(CaloVector,id_central_phi,id_central_eta,calo,nbmipngh)
 
 
 def FurthestInRatio(id_list,ratio_en,mode,id_phi,id_eta,hist):
-
     list_duo = []
 
     if len(id_list) == 2:
@@ -329,8 +328,49 @@ def FurthestInRatio(id_list,ratio_en,mode,id_phi,id_eta,hist):
         
     return list_duo
 
+def CountIsoNum(isov,isotab):
+    if isov < 0.1:
+        isotab[0] +=1
+    if isov < 0.3:
+        isotab[1] +=1
+    if isov < 0.5:
+        isotab[2] +=1
+    if isov < 0.7:
+        isotab[3] +=1
+    if isov < 0.9:
+        isotab[4] +=1
 
 
+def FillStepByStep(tab,emEnergy,hadEnergy):
+    tab[0] += 1
+    if emEnergy > 0.27:
+        tab[1] +=1
+        if emEnergy > 0.54:
+            tab[2] +=1
+            if emEnergy > 0.81:
+                tab[3] +=1
+                if hadEnergy > 0:
+                    tab[4] +=1
+                    if hadEnergy > 1.25:
+                        tab[5] +=1
+
+def FillPdgIds(cpt_list,tab):
+    for i in range(len(cpt_list)):
+        tab.append(abs(cpt_list[i].pdgId()))
+
+def FindChargedHSCP(all_ids,list_ch_id):
+    nb_ch = 0
+    for i in range(len(list_ch_id)):
+        nb_ch += all_ids.count(list_ch_id[i])
+
+    return nb_ch
+
+def FindAllHSCP(all_ids,list_all_id):
+    nb_all = 0
+    for i in range(len(list_all_id)):
+        nb_all += all_ids.count(list_all_id[i])
+
+    return nb_all
 
 def IsInMatrix(id_list,id_phi,id_eta):
     if len(id_list) == 1:
