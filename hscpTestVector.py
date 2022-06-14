@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import ROOT
 from ROOT import TCanvas,TMultiGraph, TFile, TProfile, TNtuple, TH1F, TH2F,TH2D, TGraph, TGraphErrors, TEfficiency
 from array import array
@@ -17,7 +18,7 @@ from Analysis.HLTAnalyserPy.EvtData import EvtData, EvtHandles, add_product,get_
 from Analysis.HLTAnalyserPy.CaloVectors import SetBin,FillHist,ActivityTab,SetActivityAround,PassThreshold,CreateCaloMap,Get12NeighboursLoop,CheckHighEMatrix,deltaR2,deltaR,testDeltaR2
 
 from Analysis.HLTAnalyserPy.CaloVectors import Create3by3MatrixLoop,CreateCaloTabLoop,FindTrueSeed,FindAdjacentPair,IsInMatrix,FurthestInRatio,FillStepByStep,FillPdgIds,FindAllHSCP,FindChargedHSCP,CountIsoNum
-
+from Analysis.HLTAnalyserPy.ArraysHSCP import ListCuts,idx_pdg_ch,idx_pdg_all
 
 import Analysis.HLTAnalyserPy.CoreTools as CoreTools
 import Analysis.HLTAnalyserPy.GenTools as GenTools
@@ -45,17 +46,24 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
 
+
+   
+
     hfile = TFile( 'CaloStudiesHSCP_iso_vector_1_halfMIP.root', 'RECREATE', 'Output of hscp script to save HLT quantities' )
 
     EventToStudy = sys.argv[4]
     min_mip = float(sys.argv[5])
     min_mip_ngh = float(sys.argv[7])
     max_sum_mip = float(sys.argv[8])
-    ask_cut = bool(sys.argv[9])
-    reverse_bool = bool(sys.argv[10])
+
+    ask_cut = bool(int(sys.argv[9]))
+    reverse_bool = bool(int(sys.argv[10]))
 
     print("We will study CaloTowers above ",min_mip, "MIP , and their neighbours above ", min_mip_ngh, " MIP , and sum (ECAL + HCAL) < ",max_sum_mip, " MIP")
-
+    if ask_cut:
+        print("We also ask all CaloTowers to have |eta| < 2.4")
+    else:
+        print("No requirements on Calo Towers")
     #============ CALO TOWER HISTOS ===========
 
     radius_idx_map=5
@@ -80,8 +88,10 @@ if __name__ == "__main__":
     nb_towers_8_above_trh_HSCP_RECO_ISO = TH1F('HSCP_RECO_ISO_number_of_neighbours_passing_cuts','tower nb passing cuts',9,0,9)
     nb_towers_8_below_trh_HSCP_RECO_ISO = TH1F('HSCP_RECO_ISO_number_of_neighbours_NOT_passing_cuts','tower nb not passing cuts',9,0,9)
     nb_towers_8_all_trh_HSCP_RECO_ISO = TH1F('HSCP_RECO_ISO_number_of_neighbours_per_cell','# of neibhours per cell',9,0,9)
-    Sum_Energy_8_neighbours_threshold_HSCP_RECO_ISO = TH1F('HSCP_RECO_ISO_Sum_8_neighbors_tower','(Sum of X cells (below threshold) around cell of interest iso(dr hscp calo tower min) / (8- # cells)',50,0,10)
 
+    Sum_Energy_8_neighbours_threshold_HSCP_RECO_ISO = TH1F('HSCP_RECO_ISO_Sum_8_neighbors_tower','(Sum of X cells (below threshold) around cell of interest iso(dr hscp calo tower min) / (8- # cells)',200,0,10)
+
+    Sum_Energy_8_neighbours_threshold_HSCP_RECO_ISO_matched = TH1F('HSCP_RECO_ISO_Sum_8_neighbors_tower_matched','(Sum of X cells (below threshold) around cell of interest iso(dr hscp calo tower min) / (8- # cells)',200,0,10)
 
     Number_shift_seedOI = TH1F("Number_of_seed_shifts","# of shifts from initial seed to next one",10,0,10)
 
@@ -106,6 +116,20 @@ if __name__ == "__main__":
 
     nb_matched_seed_2_charged = TH1F("nb_matched_Seed_when_2_charged","nb of matched seeds when having 2 charged HSCP", 4,0,4)
     nb_matched_seed_1_charged = TH1F("nb_matched_Seed_when_1_charged","nb of matched seeds when having 1 charged HSCP", 4,0,4)
+
+
+    nb_matched_seed_2_charged_reco = TH1F("nb_matched_Seed_when_2_reco_charged","nb of matched seeds when having 2 reco charged HSCP", 4,0,4)
+    nb_matched_seed_1_charged_reco = TH1F("nb_matched_Seed_when_1_reco_charged","nb of matched seeds when having 1 reco charged HSCP", 4,0,4)
+    #----------------- RECO HSCP HISTOGRAMS ----------------------
+
+    NB_RECO_HSCP_vs_matched_seed = TH2D("reco_hscp_vs_matched_seed","nb reco hscp vs nb matched seed per event", 3,0,3,5,0,5)
+    NB_RECO_HSCP_vs_matched_seed.GetXaxis().SetTitle("# reco hscp")
+    NB_RECO_HSCP_vs_matched_seed.GetYaxis().SetTitle("# matched seed")
+
+
+
+
+    #----------------- GEN HSCP HISTOGRAMS ----------------------
 
     NB_GEN_HSCP_vs_matched_seed = TH2D("gen_hscp_vs_matched_seed","nb gen hscp vs nb matched seed per event", 3,0,3,5,0,5)
     NB_GEN_HSCP_vs_matched_seed.GetXaxis().SetTitle("# gen hscp")
@@ -134,32 +158,37 @@ if __name__ == "__main__":
     NB_GEN_HSCP_vs_NBTOWER_isovar09.GetXaxis().SetTitle("# gen hscp")
     NB_GEN_HSCP_vs_NBTOWER_isovar09.GetYaxis().SetTitle("# tower with Iso v < 0.9")
 
-    NB_RECO_HSCP_vs_NBTOWER = TH2D("hscp_vs_tower","nb hscp vs nb tower per event", 15,0,15,25,0,25)
+    NB_RECO_HSCP_vs_NBTOWER = TH2D("reco_hscp_vs_tower","nb hscp vs nb tower per event", 15,0,15,25,0,25)
     NB_RECO_HSCP_vs_NBTOWER.GetXaxis().SetTitle("# hscp")
     NB_RECO_HSCP_vs_NBTOWER.GetYaxis().SetTitle("# tower per event")
 
-    NB_RECO_HSCP_vs_NBTOWER_isovar03 = TH2D("hscp_vs_tower_iso_03","nb hscp vs nb tower per event with iso var < 0.3", 15,0,15,25,0,25)
+    NB_CLEAN_RECO_HSCP_vs_NBTOWER = TH2D("clean_reco_hscp_vs_tower","nb clean reco hscp vs nb tower per event", 3,0,3,15,0,15)
+    NB_CLEAN_RECO_HSCP_vs_NBTOWER.GetXaxis().SetTitle("#clean reco hscp")
+    NB_CLEAN_RECO_HSCP_vs_NBTOWER.GetYaxis().SetTitle("# tower per event")
+
+
+    NB_RECO_HSCP_vs_NBTOWER_isovar03 = TH2D("reco_hscp_vs_tower_iso_03","nb hscp vs nb tower per event with iso var < 0.3", 15,0,15,25,0,25)
     NB_RECO_HSCP_vs_NBTOWER_isovar03.GetXaxis().SetTitle("# hscp")
     NB_RECO_HSCP_vs_NBTOWER_isovar03.GetYaxis().SetTitle("# tower per event with iso var < 0.3")
 
-    NB_RECO_cleanHSCP_vs_NBTOWER_isovar03 = TH2D("clean_hscp_vs_tower_iso_03","nb clean hscp (pt > 50) vs nb tower per event with iso var < 0.3", 15,0,15,25,0,25)
-    NB_RECO_cleanHSCP_vs_NBTOWER_isovar03.GetXaxis().SetTitle("# clean hscp")
+    NB_RECO_cleanHSCP_vs_NBTOWER_isovar03 = TH2D("clean_reco_hscp_vs_tower_iso_03","nb clean hscp (pt > 50) vs nb tower per event with iso var < 0.3", 15,0,15,25,0,25)
+    NB_RECO_cleanHSCP_vs_NBTOWER_isovar03.GetXaxis().SetTitle("# clean reco hscp")
     NB_RECO_cleanHSCP_vs_NBTOWER_isovar03.GetYaxis().SetTitle("# tower per event with iso var < 0.3")
 
-    NB_RECO_HSCP_vs_NBTOWER_isovar05 = TH2D("hscp_vs_tower_iso_05","nb hscp vs nb tower per event with iso var < 0.5", 15,0,15,25,0,25)
-    NB_RECO_HSCP_vs_NBTOWER_isovar05.GetXaxis().SetTitle("# hscp")
+    NB_RECO_HSCP_vs_NBTOWER_isovar05 = TH2D("reco_hscp_vs_tower_iso_05","nb hscp vs nb tower per event with iso var < 0.5", 15,0,15,25,0,25)
+    NB_RECO_HSCP_vs_NBTOWER_isovar05.GetXaxis().SetTitle("# clean reco hscp")
     NB_RECO_HSCP_vs_NBTOWER_isovar05.GetYaxis().SetTitle("# tower per event with iso var < 0.5")
 
-    NB_RECO_cleanHSCP_vs_NBTOWER_isovar05 = TH2D("clean_hscp_vs_tower_iso_05","nb clean hscp (pt > 50) vs nb tower per event with iso var < 0.5", 15,0,15,25,0,25)
-    NB_RECO_cleanHSCP_vs_NBTOWER_isovar05.GetXaxis().SetTitle("# clean hscp")
+    NB_RECO_cleanHSCP_vs_NBTOWER_isovar05 = TH2D("clean_reco_hscp_vs_tower_iso_05","nb clean reco hscp (pt > 50) vs nb tower per event with iso var < 0.5", 15,0,15,25,0,25)
+    NB_RECO_cleanHSCP_vs_NBTOWER_isovar05.GetXaxis().SetTitle("# clean reco hscp")
     NB_RECO_cleanHSCP_vs_NBTOWER_isovar05.GetYaxis().SetTitle("# tower per event with iso var < 0.5")
 
-    NB_RECO_HSCP_vs_NBTOWER_isovar07 = TH2D("hscp_vs_tower_iso_07","nb hscp vs nb tower per event with iso var < 0.7", 15,0,15,25,0,25)
+    NB_RECO_HSCP_vs_NBTOWER_isovar07 = TH2D("reco_hscp_vs_tower_iso_07","nb hscp vs nb tower per event with iso var < 0.7", 15,0,15,25,0,25)
     NB_RECO_HSCP_vs_NBTOWER_isovar07.GetXaxis().SetTitle("# hscp")
     NB_RECO_HSCP_vs_NBTOWER_isovar07.GetYaxis().SetTitle("# tower per event with iso var < 0.7")
 
 
-    NB_RECO_cleanHSCP_vs_NBTOWER_isovar07 = TH2D("clean_hscp_vs_tower_iso_07","nb clean hscp (pt > 50) vs nb tower per event with iso var < 0.7", 15,0,15,25,0,25)
+    NB_RECO_cleanHSCP_vs_NBTOWER_isovar07 = TH2D("clean_reco_hscp_vs_tower_iso_07","nb clean hscp (pt > 50) vs nb tower per event with iso var < 0.7", 15,0,15,25,0,25)
     NB_RECO_cleanHSCP_vs_NBTOWER_isovar07.GetXaxis().SetTitle("# clean hscp")
     NB_RECO_cleanHSCP_vs_NBTOWER_isovar07.GetYaxis().SetTitle("# tower per event with iso var < 0.7")
 
@@ -215,7 +244,20 @@ if __name__ == "__main__":
     dr_min_matched_iso_hscp_tower = TH1F('min_dr_matched_gen_hscp_tower_iso','min dr between an hscp and a tower with iso var < 0.7',40,0,0.4)
     dr_min_iso_hscp_tower = TH1F('min_dr_hscp_tower_iso','min dr between an hscp and a tower with iso var < 0.7',1000,0,10)
 
+    dr_min_matched_iso_reco_hscp_tower = TH1F('min_dr_matched_reco_hscp_tower_iso','min dr between a reco hscp and a tower with iso var < 0.7',40,0,0.4)
+    
+    dr_min_TEST_iso_hscp_tower = TH1F('min_dr_seed_gen_hscp_tower','min dr between all seeds and HSCPS',120,0,6)
     #============ END CALO TOWER HISTOS ===========
+  
+    #=============== START MET HISTOS ================
+
+
+
+    calomet_gen_hscp_matched = TH1F('caloMET_gen_hscp_matched','hlt Calo MET for matched gen hscp - seed', 500,0,500)
+    calomet_reco_hscp_matched = TH1F('caloMET_reco_hscp_matched','hlt Calo MET for matched reco hscp - seed', 500,0,500)
+
+    #=============== END MET HISTOS =============
+
 
     #============ GENERAL HISTOS ===========
 
@@ -246,11 +288,14 @@ if __name__ == "__main__":
     add_product(std_products,"trig_sum","trigger::TriggerEvent",f"hltTriggerSummaryAOD::{hlt_process}")
     add_product(std_products,"trig_res","edm::TriggerResults",f"TriggerResults::{hlt_process}")
 
+    add_product(std_products,"l1algblk","BXVector<GlobalAlgBlk>","gtStage2Digis")
+    add_product(std_products,"l1extblk","BXVector<GlobalExtBlk>","gtStage2Digis")
+
     #l1 objects
     add_product(std_products,"l1eg","BXVector<l1t::EGamma>","hltGtStage2Digis:EGamma")
     add_product(std_products,"l1etsum","BXVector<l1t::EtSum>","hltGtStage2Digis:EtSum")
     add_product(std_products,"l1jet","BXVector<l1t::Jet>","hltGtStage2Digis:Jet")
-    add_product(std_products,"l1muon","BXVector<l1t::Muon>","hltGtStage2Digis:Muon")
+    add_product(std_products,"l1muon","BXVector<l1t::Muon>","gtStage2Digis:Muon")
     add_product(std_products,"l1egamma","BXVector<l1t::EGamma>","hltGtStage2Digis:EGamma")
     add_product(std_products,"l1tau","BXVector<l1t::Tau>","hltGtStage2Digis:Tau")
     # additional HLT products saved
@@ -262,85 +307,111 @@ if __name__ == "__main__":
     add_product(std_products,"dedx","edm::ValueMap<reco::DeDxData>","hltDeDxEstimatorProducer")
 
     add_product(std_products,"genPmc","vector<reco::GenParticle>","genParticles::SIM")
+    add_product(std_products,"CaloMET","vector<reco::CaloMET>",f"hltMet::{hlt_process}")
 
 
     evtdata = EvtData(std_products,verbose=True)
 
     events = Events(CoreTools.get_filenames(args.in_filenames,args.prefix))
-    nbevents = TH1F('nbevent', '# events',30000,20000,50000)
 
-    ListCuts = ["All","+ 1mip ecal", "+2mip ecal","+3mip ecal","+had energy","+ 1mip hcal"]
+
+    l1menu_tree_file = ROOT.TFile.Open(args.l1menufile)
+    l1menu_tree = ROOT.L1TUtmTriggerMenuRcd
+    l1menu_tree.GetEntry(0)
+    l1menu = l1menu_tree.L1TUtmTriggerMenu__
+
+    l1name_to_indx = {x.second.getName() :x.second.getIndex() for x in l1menu.getAlgorithmMap()}
+
+    #l1bitnr = l1name_to_indx["L1_SingleMu22"]
+
+
+    nbevents = TH1F('nbevent', '# events',30000,20000,50000)
 
     print("This is a custom python script that allows the study of different aspects : L1 seed efficiencies, saving additional information about MET/MHT, energy clusters in ECAL/HCAL and more\n")
     print("Number of events to study : ",events.size())
     nbevents.Fill(events.size())
 
-    print("Studying event ",EventToStudy)
     nb_hscp_pre_iso, nb_hscp_after_iso = 0,0
 
-    nb_cdt_2by2,nb_cdt_out_2by2 = [0] * 4,[0] * 4
-    nb_cdt_2by2_hscp_iso,nb_cdt_out_2by2_hscp_iso = [0] * 4,[0] * 4
+    nb_cdt_2by2 , nb_cdt_out_2by2 , nb_cdt_2by2_hscp_iso , nb_cdt_out_2by2_hscp_iso = [0] * 4 , [0] * 4 , [0] * 4 , [0] * 4
 
-    tot_num_eff,tot_denom_eff = 0,0
-    nb_seed_iso_matched,nb_seed_iso = 0,0
-    totnb_tower_evt,totnb_tower_evt_hscp_iso = 0,0
-    nb_ch_hscp, nb_matched_seed = 0,0
-    nb_tower_evt_cut = [0]*6
+    nb_seed_iso_matched , nb_seed_iso , nb_seed_iso_matched_reco = 0 , 0 , 0
+    
+    totnb_tower_evt , totnb_tower_evt_hscp_iso , nb_ch_hscp , nb_ch_reco_hscp , nb_ch_clean_hscp , nb_ch_clean_reco_hscp , nb_matched_seed , nb_matched_reco_seed = 0 , 0 , 0 , 0 , 0 , 0 , 0 , 0
+    tot_nb_tower_evt_gen_min_1 , tot_nb_tower_evt_reco_min_1 = 0 , 0
+
+    totnb_tower_evt_atleast_1_gen_hscp,totnb_tower_evt_atleast_1_reco_hscp = 0 , 0
+
+    nb_belo_iso_tab_gen_tot , nb_belo_iso_tab_reco_tot = [0] * 5 , [0] * 5
+
+    nb_tower_evt_cut , nb_belo_iso_tab_tot = [0] * 6 , [0] * 5
     for eventnr,event in enumerate(events):#events
-        nb_fake_evt,nb_tower_evt,nb_num_eff,nb_denom_eff = 0,0,0,0
-        #print("EVENT ", eventnr)
-        nb_matched_pe = 0
-        #we need to initialise the handles, must be called first for every event
         evtdata.get_handles(events)
+
+        nb_fake_evt , nb_tower_evt , nb_tower_evt_gen_min_1 , nb_tower_evt_reco_min_1 = 0 , 0 , 0 , 0
+        nb_matched_pe, nb_matched_reco_pe = 0,0
+
+        #we need to initialise the handles, must be called first for every event
+
+        '''
+        l1algblk = evtdata.get("l1algblk")
+
+        l1dec_final = l1algblk.at(0,0).getAlgoDecisionFinal()
+        l1dec_final_bxp1 = l1algblk.at(1,0).getAlgoDecisionFinal() if l1algblk.getLastBX()>=1 else None
+
+        l1muons_allbx = evtdata.get("l1muon")
+        
+        l1muons_bx0 = [l1muons_allbx.at(0,munr) for munr in range(0,l1muons_allbx.size(0))]
+        l1muons_bx1 = [l1muons_allbx.at(1,munr) for munr in range(0,l1muons_allbx.size(1))] if l1muons_allbx.getLastBX()>=1 else []
+        print(f"nr muons bx 1 {len(l1muons_bx1)}")
+        for mu in l1muons_bx1:
+            print(f" pt/eta/phi {mu.hwPt()} {mu.hwEta()} {mu.hwPhi()}")
+        '''
+
 
         #print("Event # ", eventnr)
         if eventnr%1000 == 0 :
             print((eventnr/events.size())*100," %")
 
-        #we can also do this for l1obj which the HLT filters write
-        #these filters always begin with hltL1s
-        l1met_objs = TrigTools.get_objs_passing_filter_aod(evtdata,"hltL1sAllETMHFSeeds")
-        #tracks
-        hlt_trk_p4s = TrigTools.get_objs_passing_filter_aod(evtdata,"hltTrk50Filter")
-        #now the above is the basic HLT info you can expect to exist in AOD
-        #ESTIMATING l1 SEED EFFICIENCIES
-        l1singlemu18 = TrigTools.get_objs_passing_filter_aod(evtdata,"hltL1sSingleMu18")
 
-        hscparticle = evtdata.get("hscp")
-        hscp_iso = evtdata.get("hscpIso")
-        GenParticles = evtdata.get("GenP")
-        CaloTowers = evtdata.get("calotower")
-        GenParticlesMC = evtdata.get("genPmc")
-
-        #idx_pdg_ch = [1009213,1009323,1092214,1091114,1093114,1093224,1093314,1093334,1000612,1000632,1000652,1006211,1006213,1006313,1006321,1006323]
-        #idx_pdg_n = [1000622,1093324,1092114,1000993,1009113,1009223,1009313,1009333,1093214,1000642,1006113,1006311,1006313]
-        #idx_pdg_dch = [1006223, 1092224]
+        hscparticle , hscp_iso , GenParticles , CaloTowers , GenParticlesMC , CaloMET = evtdata.get("hscp") , evtdata.get("hscpIso") , evtdata.get("GenP") , evtdata.get("calotower") , evtdata.get("genPmc"), evtdata.get("CaloMET")
 
 
-        idx_pdg_ch = [1009213,1009323,1092214,1091114,1093114,1093224,1093314,1093334,1000612,1000632,1000652,1006211,1006213,1006313,1006321,1006323,1006223, 1092224]
 
-        idx_pdg_all = [1009213,1009323,1092214,1091114,1093114,1093224,1093314,1093334,1000612,1000632,1000652,1006211,1006213,1006313,1006321,1006323,1000622,1093324,1092114,1000993,1009113,1009223,1009313,1009333,1093214,1000642,1006113,1006311,1006313,1006223, 1092224]
+        
+        #--------------- MET STUDY -------------------
+        '''
+        if CaloMET is not None:
+            print("Size of CaloMET collection for this event :", len(CaloMET))
+            for m in range(len(CaloMET)):
+                print(CaloMET[m].et())
+
+        '''
+
+        #------------------ END MET STUDY -------------------
+
 
         all_pdg_id = []
-        generator_hscp_ch = 0
-        generator_hscp_all = 0
+        generator_hscp_ch,generator_hscp_clean_ch,generator_hscp_all,reco_hscp_clean_ch = 0,0,0,0
+
         FillPdgIds(GenParticlesMC,all_pdg_id)
 
-        generator_hscp_ch = FindChargedHSCP(all_pdg_id,idx_pdg_ch)
-        generator_hscp_all = FindAllHSCP(all_pdg_id,idx_pdg_all)
+        generator_hscp_ch , generator_hscp_all = FindChargedHSCP(all_pdg_id,idx_pdg_ch) , FindAllHSCP(all_pdg_id,idx_pdg_all)
 
         nb_ch_hscp += generator_hscp_ch
 
         Number_ALL_GEN_HSCP_per_event.Fill(generator_hscp_all)
         Number_CH_GEN_HSCP_per_event.Fill(generator_hscp_ch)
  
-        indices = [i for i, x in enumerate(all_pdg_id) if x in idx_pdg_ch]
-       
-
+        indices = [i for i, x in enumerate(all_pdg_id) if x in idx_pdg_ch]       
         GEN_HSCPVector = []
         for p in range(len(indices)):
             p_over_m_hscp.Fill(GenParticlesMC[indices[p]].p()/1800)
-            GEN_HSCPVector.append((indices[p],GenParticlesMC[indices[p]].phi(),GenParticlesMC[indices[p]].eta()))
+            if GenParticlesMC[indices[p]].pt() > 55 and abs(GenParticlesMC[indices[p]].eta() ) < 2.1:                       
+                GEN_HSCPVector.append((indices[p],GenParticlesMC[indices[p]].phi(),GenParticlesMC[indices[p]].eta()))
+
+        nb_ch_clean_hscp += len(GEN_HSCPVector)
+        generator_hscp_clean_ch = len(GEN_HSCPVector)
 
         tst_nb_dr01 = 0
         if reverse_bool:             
@@ -385,226 +456,177 @@ if __name__ == "__main__":
         CaloVectorAll = [] 
         CaloVectorAll = CaloVector[:]
 
-
         Number_RECO_HSCP_per_event.Fill(hscparticle.size())
         
+        # RECO HSCP CANDIDATES CLEANING FOR EFFICIENCY N+1
         HSCPVector = []
-        #print("iso size : ",hscp_iso.size())
         for i in  range(hscparticle.size()):
             if hscparticle[i].trackRef().isNonnull():
                 track_hscp = hscparticle[i].trackRef()
                 iso_hscp = hscp_iso.get(track_hscp.key())
-                if track_hscp.pt() > 55 and (iso_hscp.Get_ECAL_Energy() + iso_hscp.Get_HCAL_Energy())/track_hscp.p() < 0.3 and track_hscp.numberOfValidHits() > 8 and track_hscp.quality(2) and track_hscp.dxy() < 0.5 and track_hscp.dz() < 0.5:
+                if track_hscp.pt() > 55 and (iso_hscp.Get_ECAL_Energy() + iso_hscp.Get_HCAL_Energy())/track_hscp.p() < 0.3 and track_hscp.numberOfValidHits() > 8 and track_hscp.quality(2) and track_hscp.dxy() < 0.5 and track_hscp.dz() < 0.5 and abs(track_hscp.eta()) < 2.1 :
                     HSCPVector.append((i,track_hscp.phi(),track_hscp.eta()))
 
         Number_RECO_HSCP_cleaned_per_event.Fill(len(HSCPVector))
 
-        #print("Size of HSCP collection : ", hscparticle.size())
+        reco_hscp_clean_ch = len(HSCPVector)
+        nb_ch_clean_reco_hscp += len(HSCPVector)
+        #END OF RECO HSCP CANDIDATES CLEANING
+
         nb_hscp_evt=0
+
+        if len(GEN_HSCPVector) != 0:
+            gen_vec = True
+        else:
+            gen_vec = False
+        if len(HSCPVector) != 0:
+            reco_vec = True
+        else:
+            reco_vec = False
+
+
+        ''' 
+        print("There are ", len(GEN_HSCPVector), " gen hscp charged : ")
+        for o in range(len(GEN_HSCPVector)):
+            print("HSCP nb ",o, " has eta = ", GEN_HSCPVector[o][2], " and phi = " , GEN_HSCPVector[o][1])
         '''
-        if CaloVector:
-            for i in range(hscparticle.size()):
-                cpt_hscp = True
-                nb_tower_hscp_evt=0
-                mindreg = 9999
-                idx_dreg = 9999
-                dreg = 9999
-                if hscparticle[i].trackRef().isNonnull():
-                    track = hscparticle[i].trackRef()
-                    iso_got = hscp_iso.get(track.key())
-                    #print("iso TK sumET : ", iso_got.Get_TK_SumEt())
-                    if track.pt() > 50:
-                        for l in range(len(CaloVector)-1,0,-1):
-                            if CaloVector[l][6] > 0:
-                                p = PassThreshold("any",min_mip,CaloVector[l][5],CaloVector[l][6])
-                                if p:
-                                    dreg = deltaR(deltaR2(CaloVector[l][4],CaloVector[l][3],track.eta(),track.phi()))
-                                    nb_tower_hscp_evt+=1
-                                    if dreg < mindreg:
-                                        mindreg = dreg
-                                        idx_dreg = l
+
+
+        if CaloVectorAll:
+            nb_non_phys = 0
+            nb_belo_iso_tab = [0] * 5
+            nb_belo_iso_tab_gen , nb_belo_iso_tab_reco = [0] * 5 , [0] * 5
+
+            for l in range(len(CaloVectorAll)-1,-1,-1):
+                FillStepByStep(nb_tower_evt_cut,CaloVectorAll[l][5],CaloVectorAll[l][6])
+                trf_eta,trf_phi,baryct_eta,baryct_phi, sum_ngh_above = 0,0,0,0,0
+
+                cpt = True
+                if CaloVectorAll[l][6] > 0:
+                    p_all = PassThreshold("any",min_mip,CaloVectorAll[l][5],CaloVectorAll[l][6],max_sum_mip)
+                    if p_all:
+                        nb_tower_evt , totnb_tower_evt = nb_tower_evt+1, totnb_tower_evt+1
+                        if gen_vec:
+                            nb_tower_evt_gen_min_1 , tot_nb_tower_evt_gen_min_1  = nb_tower_evt_gen_min_1 + 1 , tot_nb_tower_evt_gen_min_1 + 1
+                        if reco_vec:
+                            tot_nb_tower_evt_reco_min_1 , nb_tower_evt_reco_min_1 = tot_nb_tower_evt_reco_min_1 + 1 , nb_tower_evt_reco_min_1 + 1
+
+                        ratio_ecal_hcal_seeds.Fill(CaloVectorAll[l][5] / CaloVectorAll[l][6])
+
+                        idx_phi,idx_eta,emEnergy,hadenergy,phi,eta,index = CaloVectorAll[l][1], CaloVectorAll[l][2],CaloVectorAll[l][5],CaloVectorAll[l][6],CaloVectorAll[l][3],CaloVectorAll[l][4],l
+                        new_idx_phi,new_idx_eta,new_ratio_energy,new_phi,new_eta,new_index = FindTrueSeed(CaloVectorAll,idx_phi,idx_eta,(emEnergy/hadenergy),"both",phi,eta,index,max_sum_mip,min_mip)
+                        all_nb_shift=0
+                        while ((new_idx_phi != idx_phi) or (new_idx_eta != idx_eta)):
+                            idx_phi,idx_eta,phi,eta,index = new_idx_phi,new_idx_eta,new_phi,new_eta,new_index
+                            new_idx_phi,new_idx_eta,new_ratio_energy,new_phi,new_eta,new_index = FindTrueSeed(CaloVectorAll,idx_phi,idx_eta,new_ratio_energy,"both",new_phi,new_eta,new_index,max_sum_mip,min_mip)
+                            all_nb_shift +=1
+
     
-                        if mindreg < 0.3 and iso_got.Get_TK_SumEt() < 50 and (iso_got.Get_ECAL_Energy() + iso_got.Get_HCAL_Energy())/track.p() < 0.3:
-                            nb_hscp_after_iso+=1
-                             
-                            idx_phi_hscp_iso,idx_eta_hscp_iso,emEnergy_hscp_iso,hadenergy_hscp_iso,phi_hscp_iso,eta_hscp_iso,index_hscp_iso = CaloVector[idx_dreg][1], CaloVector[idx_dreg][2],CaloVector[idx_dreg][5],CaloVector[idx_dreg][6],CaloVector[idx_dreg][3],CaloVector[idx_dreg][4],idx_dreg
+                        id_list,nb_all_ngh,nb_ngh_below,nb_ngh_above,sum_all_ngh_below = Create3by3MatrixLoop(CaloVectorAll,idx_phi,idx_eta,'both',min_mip_ngh,max_sum_mip)
+                        sq_oi = 5
+                        nb_towers_8_above_trh.Fill(nb_ngh_above)
+                        Number_neighbours_per_seed.Fill((nb_ngh_above+nb_ngh_below))
+                        Number_shift_seedOI.Fill(all_nb_shift)    
+                        
+                          
+                        CaloVectorAll[new_index] = ((-999999,-999999,-999999,-999999,-999999,0,0))
+                        '''
+                        print("MAIN SEED has eta = ", eta, " and phi = ", phi,"\n")
+                        print("This seed has  ", len(id_list), " neighbours ")
+                        
+                        for j in range (len(id_list)):
+                            print("Candidate nb :",j, " has phi = ", id_list[j][3] , " and eta : ", id_list[j][4])
+                        '''
+ 
+                        if len(id_list) == 0:
+                            nb_cdt_2by2[0] += 1
+                            baryct_eta,baryct_phi = new_eta,new_phi
+                            #print("0 neighbours, central seed has phi = ", new_phi, " and eta = ", new_eta)
 
-                            new_idx_phi_hscp_iso,new_idx_eta_hscp_iso,new_ratio_energy_hscp_iso,new_phi_hscp_iso,new_eta_hscp_iso,new_index_hscp_iso = FindTrueSeed(CaloVector,idx_phi_hscp_iso,idx_eta_hscp_iso,(emEnergy_hscp_iso/hadenergy_hscp_iso),"both",phi_hscp_iso,eta_hscp_iso,index_hscp_iso)
+                        elif len(id_list) == 1 or len(id_list) == 2 or len(id_list) == 3:
+                            sq_oi = IsInMatrix(id_list,idx_phi,idx_eta)
+                            if sq_oi == 1:
+                                #print("We have ", len(id_list), " neighbours for that seed : ")
+                                for u in range(len(id_list)):
+                                   #print("Neighbour ",u+1, " -> eta = ", "%.2f" % id_list[u][4], " , phi = ", "%.2f" % id_list[u][3])
+                                   trf_eta += id_list[u][4] * (id_list[u][5]+id_list[u][6])
+                                   trf_phi += id_list[u][3] * (id_list[u][5]+id_list[u][6])
+                                   sum_ngh_above += (id_list[u][5]+id_list[u][6]) 
 
-                            ISO_HSCP_nb_shift=0
-                            while ((new_idx_phi_hscp_iso != idx_phi_hscp_iso) or (new_idx_eta_hscp_iso != idx_eta_hscp_iso)):
-                                idx_phi_hscp_iso,idx_eta_hscp_iso,phi_hscp_iso,eta_hscp_iso,index_hscp_iso = new_idx_phi_hscp_iso,new_idx_eta_hscp_iso,new_phi_hscp_iso,new_eta_hscp_iso,new_index_hscp_iso
-                                new_idx_phi_hscp_iso,new_idx_eta_hscp_iso,new_ratio_energy_hscp_iso,new_phi_hscp_iso,new_eta_hscp_iso,new_index_hscp_iso = FindTrueSeed(CaloVector,idx_phi_hscp_iso,idx_eta_hscp_iso,new_ratio_energy_hscp_iso,"both",new_phi_hscp_iso,new_eta_hscp_iso,new_index_hscp_iso)
-
-                                ISO_HSCP_nb_shift +=1
-    
-    
-                            ISO_HSCP_Number_shift_seedOI.Fill(ISO_HSCP_nb_shift)        
-                            id_list_hscp_iso,nb_all_ngh_hscp_iso,nb_ngh_below_hscp_iso,nb_ngh_above_hscp_iso,sum_all_ngh_below_hscp_iso = Create3by3MatrixLoop(CaloVector,idx_phi_hscp_iso,idx_eta_hscp_iso,'both',min_mip_ngh)
-                            sq_oi_hscp = 5
-                            nb_towers_8_above_trh_HSCP_RECO_ISO.Fill(nb_ngh_above_hscp_iso)
-
-                            if len(id_list_hscp_iso) == 0:
-                                nb_cdt_2by2_hscp_iso[0] += 1
-
-                            elif len(id_list_hscp_iso) == 1 or len(id_list_hscp_iso) == 2 or len(id_list_hscp_iso) == 3:
-                                nb_hscp_evt+=1
-                                Number_HSCP_2by2_max_event.Fill(len(id_list_hscp_iso)) 
-                                sq_oi_hscp = IsInMatrix(id_list_hscp_iso,idx_phi_hscp_iso,idx_eta_hscp_iso)
-                                if sq_oi_hscp == 1:
-                                    nb_cdt_2by2_hscp_iso[len(id_list_hscp_iso)] +=1
-                                    for o in range(len(id_list_hscp_iso)):
-                                        CaloVector.remove((id_list_hscp_iso[o]))
-
-                                else:
-                                    if len(id_list_hscp_iso) == 1:
-                                        sum_all_ngh_below_hscp_iso += (id_list_hscp_iso[0][5] + id_list_hscp_iso[0][6])
-                                        nb_ngh_below_hscp_iso +=1
-
-
-                                    elif len(id_list_hscp_iso) == 2:
-                                        worst_cdt_hscp_iso = FurthestInRatio(id_list_hscp_iso,new_ratio_energy_hscp_iso,1,idx_phi_hscp_iso,idx_eta_hscp_iso,Xi2_choice_2_and_1_hscp_iso)
-                                        best_cdt_hscp_iso = FurthestInRatio(id_list_hscp_iso,new_ratio_energy_hscp_iso,2,idx_phi_hscp_iso,idx_eta_hscp_iso,Xi2_choice_2_and_1_hscp_iso)
-                                        nb_cdt_out_2by2_hscp_iso[1] +=1
-
-                                        for o in range(len(worst_cdt_hscp_iso)):
-                                            sum_all_ngh_below_hscp_iso += (worst_cdt_hscp_iso[o][5] + worst_cdt_hscp_iso[o][6])
-                                            nb_ngh_below_hscp_iso +=1
-
-                                        if len(best_cdt_hscp_iso) != 0:
-                                            CaloVector.remove(best_cdt_hscp_iso[0])
-
-                                    elif len(id_list_hscp_iso) == 3:
-                                        worst_cdt_3_hscp_iso = FurthestInRatio(id_list_hscp_iso,new_ratio_energy_hscp_iso,1,idx_phi,idx_eta_hscp_iso,Xi2_choice_3_hscp_iso)
-                                        best_cdt_3_hscp_iso = FurthestInRatio(id_list_hscp_iso,new_ratio_energy_hscp_iso,2,idx_phi_hscp_iso,idx_eta_hscp_iso,Xi2_choice_3_hscp_iso)
-                                        nb_cdt_out_2by2_hscp_iso[2] +=1
-                                        if len(worst_cdt_3_hscp_iso) != 0:
-                                            for i in range(len(worst_cdt_3_hscp_iso)):
-                                                sum_all_ngh_below_hscp_iso += worst_cdt_3_hscp_iso[i][5] + worst_cdt_3_hscp_iso[i][6]
-                                                nb_ngh_below_hscp_iso +=1
-                                        if len(best_cdt_3_hscp_iso) != 0:
-                                            for i in range(len(best_cdt_3_hscp_iso)):
-                                                CaloVector.remove((best_cdt_3_hscp_iso[i]))
-
-  
+                                baryct_eta,baryct_phi = (trf_eta/sum_ngh_above),(trf_phi/sum_ngh_above)
+                                #print("Barycenter eta = ","%.2f" % baryct_eta, " and barycenter phi = ","%.2f" % baryct_phi)
+                                
+                                Nb_neighbour_within_2by2.Fill(len(id_list))
+                                nb_cdt_2by2[len(id_list)] += 1
+                                nb_towers_8_below_trh.Fill(nb_ngh_below)
+                                nb_towers_8_all_trh.Fill(nb_ngh_below + nb_ngh_above)
+                                for o in range(len(id_list)): 
+                                    CaloVectorAll[id_list[o][0]] = ((-999999,-999999,-999999,-999999,-999999,0,0))
+                                    #CaloVectorAll.remove((id_list[o]))
+                         
                             else:
-                                cpt_hscp = False
-                                HSCP_ISO_Number_non_physical_event.Fill(1)
-                            
-                            if cpt_hscp:
-                                if nb_ngh_above_hscp_iso != 8:
-                                    Sum_Energy_8_neighbours_threshold_HSCP_RECO_ISO.Fill(sum_all_ngh_below_hscp_iso/(8-nb_ngh_above_hscp_iso))
-                                else:
-                                    Sum_Energy_8_neighbours_threshold_HSCP_RECO_ISO.Fill(-5)
+                                if len(id_list) == 1:
+                                    sum_all_ngh_below += (id_list[0][5] + id_list[0][6])
+                                    nb_ngh_below +=1
 
-
-            nb_matched_hscp_vs_nb_hscp.Fill(nb_hscp_evt,hscparticle.size())
-            CaloVector.clear()
-            '''
-
-        if generator_hscp_ch != 0:
-            if CaloVectorAll:
-                nb_non_phys = 0
-                nb_belo_iso_tab = [0] * 5
-                #[0] is 0.15, [1] is 0.3, [2] is 0.5, [3] is 0.7, [4] is 0.9
-
-                for l in range(len(CaloVectorAll)-1,-1,-1):
-                    FillStepByStep(nb_tower_evt_cut,CaloVectorAll[l][5],CaloVectorAll[l][6])
-
-                    cpt = True
-                    if CaloVectorAll[l][6] > 0:
-                        p_all = PassThreshold("any",min_mip,CaloVectorAll[l][5],CaloVectorAll[l][6],max_sum_mip)
-                        if p_all:
-                            nb_tower_evt , totnb_tower_evt, nb_denom_eff, tot_denom_eff = nb_tower_evt+1, totnb_tower_evt+1, nb_denom_eff+1, tot_denom_eff+1
-                            ratio_ecal_hcal_seeds.Fill(CaloVectorAll[l][5] / CaloVectorAll[l][6])
-    
-                            idx_phi,idx_eta,emEnergy,hadenergy,phi,eta,index = CaloVectorAll[l][1], CaloVectorAll[l][2],CaloVectorAll[l][5],CaloVectorAll[l][6],CaloVectorAll[l][3],CaloVectorAll[l][4],l
-                            new_idx_phi,new_idx_eta,new_ratio_energy,new_phi,new_eta,new_index = FindTrueSeed(CaloVectorAll,idx_phi,idx_eta,(emEnergy/hadenergy),"both",phi,eta,index,max_sum_mip,min_mip)
-                            all_nb_shift=0
-                            while ((new_idx_phi != idx_phi) or (new_idx_eta != idx_eta)):
-                                idx_phi,idx_eta,phi,eta,index = new_idx_phi,new_idx_eta,new_phi,new_eta,new_index
-                                new_idx_phi,new_idx_eta,new_ratio_energy,new_phi,new_eta,new_index = FindTrueSeed(CaloVectorAll,idx_phi,idx_eta,new_ratio_energy,"both",new_phi,new_eta,new_index,max_sum_mip,min_mip)
-                                all_nb_shift +=1
-    
-        
-                            id_list,nb_all_ngh,nb_ngh_below,nb_ngh_above,sum_all_ngh_below = Create3by3MatrixLoop(CaloVectorAll,idx_phi,idx_eta,'both',min_mip_ngh,max_sum_mip)
-                            sq_oi = 5
-                            nb_towers_8_above_trh.Fill(nb_ngh_above)
-                            Number_neighbours_per_seed.Fill((nb_ngh_above+nb_ngh_below))
-                            Number_shift_seedOI.Fill(all_nb_shift)    
-                            
-                              
-                            CaloVectorAll[new_index] = ((-999999,-999999,-999999,-999999,-999999,0,0))
-
-                            if len(id_list) == 0:
-                                nb_cdt_2by2[0] += 1
-                                #CaloVectorAll[new_index] = ((-999999,-999999,-999999,-999999,-999999,-999999,-999999))
-
-                            elif len(id_list) == 1 or len(id_list) == 2 or len(id_list) == 3:
-                                sq_oi = IsInMatrix(id_list,idx_phi,idx_eta)
-                                if sq_oi == 1:
-                                    Nb_neighbour_within_2by2.Fill(len(id_list))
-                                    nb_cdt_2by2[len(id_list)] += 1
-                                    nb_towers_8_below_trh.Fill(nb_ngh_below)
-                                    nb_towers_8_all_trh.Fill(nb_ngh_below + nb_ngh_above)
-                                    for o in range(len(id_list)): 
-                                        CaloVectorAll[id_list[o][0]] = ((-999999,-999999,-999999,-999999,-999999,0,0))
-                                        #CaloVectorAll.remove((id_list[o]))
-                             
-                                else:
-                                    if len(id_list) == 1:
-                                        sum_all_ngh_below += (id_list[0][5] + id_list[0][6])
+                                elif len(id_list) == 2:
+                                    worst_cdt = FurthestInRatio(id_list,new_ratio_energy,1,idx_phi,idx_eta,Xi2_choice_2_and_1)
+                                    best_cdt = FurthestInRatio(id_list,new_ratio_energy,2,idx_phi,idx_eta,Xi2_choice_2_and_1)
+                                    nb_cdt_out_2by2[1] +=1
+                                    for o in range(len(worst_cdt)):
+                                        sum_all_ngh_below += (worst_cdt[o][5] + worst_cdt[o][6])
                                         nb_ngh_below +=1
-    
-                                    elif len(id_list) == 2:
-                                        worst_cdt = FurthestInRatio(id_list,new_ratio_energy,1,idx_phi,idx_eta,Xi2_choice_2_and_1)
-                                        best_cdt = FurthestInRatio(id_list,new_ratio_energy,2,idx_phi,idx_eta,Xi2_choice_2_and_1)
-                                        nb_cdt_out_2by2[1] +=1
-                                        for o in range(len(worst_cdt)):
-                                            sum_all_ngh_below += (worst_cdt[o][5] + worst_cdt[o][6])
-                                            nb_ngh_below +=1
-    
-                                        if len(best_cdt) != 0:
-                                            CaloVectorAll[best_cdt[0][0]] = ((-999999,-999999,-999999,-999999,-999999,0,0))
-                                            #CaloVectorAll.remove(best_cdt[0])
-    
-                                    elif len(id_list) == 3:
-                                        worst_cdt_3 = FurthestInRatio(id_list,new_ratio_energy,1,idx_phi,idx_eta,Xi2_choice_3)
-                                        best_cdt_3 = FurthestInRatio(id_list,new_ratio_energy,2,idx_phi,idx_eta,Xi2_choice_3)
-                                        nb_cdt_out_2by2[2] +=1
-                                        if len(worst_cdt_3) != 0:
-                                            for i in range(len(worst_cdt_3)):
-                                                sum_all_ngh_below += worst_cdt_3[i][5] + worst_cdt_3[i][6]
-                                                nb_ngh_below +=1
-    
-                                        if len(best_cdt_3) != 0:
-                                            for i in range(len(best_cdt_3)):
-                                                #CaloVectorAll.remove((best_cdt_3[i]))
-                                                CaloVectorAll[best_cdt_3[i][0]] = ((-999999,-999999,-999999,-999999,-999999,0,0))
-    
-                            else:
-                                cpt = False
-                                nb_non_phys +=1
-                                Number_non_physical_event.Fill(1) 
-       
-                            if cpt:
-                                if nb_ngh_above != 8:
-                                    Iso_var = sum_all_ngh_below/(8-nb_ngh_above)
-                                    #print("CaloTower ", l , " after ",all_nb_shift , " shifts")
-                                    #print("Computing iso var for seed",new_index ," id phi : ",idx_phi ," and id eta : ",idx_eta ," with", (8-nb_ngh_above), " neighbours outside thresholds, their sum = ","%.2f" % sum_all_ngh_below, " iso = ", Iso_var)
-                                    CountIsoNum(Iso_var,nb_belo_iso_tab)
 
-                                    if Iso_var < 1:
-                                        nb_seed_iso += 1 
-    
-                                    min_dr_nd = 999999
+                                    if len(best_cdt) != 0:
+                                        CaloVectorAll[best_cdt[0][0]] = ((-999999,-999999,-999999,-999999,-999999,0,0))
+
+                                elif len(id_list) == 3:
+                                    worst_cdt_3 = FurthestInRatio(id_list,new_ratio_energy,1,idx_phi,idx_eta,Xi2_choice_3)
+                                    best_cdt_3 = FurthestInRatio(id_list,new_ratio_energy,2,idx_phi,idx_eta,Xi2_choice_3)
+                                    nb_cdt_out_2by2[2] +=1
+                                    if len(worst_cdt_3) != 0:
+                                        for i in range(len(worst_cdt_3)):
+                                            sum_all_ngh_below += worst_cdt_3[i][5] + worst_cdt_3[i][6]
+                                            nb_ngh_below +=1
+
+                                    if len(best_cdt_3) != 0:
+                                        for i in range(len(best_cdt_3)):
+                                            #CaloVectorAll.remove((best_cdt_3[i]))
+                                            CaloVectorAll[best_cdt_3[i][0]] = ((-999999,-999999,-999999,-999999,-999999,0,0))
+
+                        else:
+                            cpt = False
+                            nb_non_phys +=1
+                            Number_non_physical_event.Fill(1) 
+   
+                        if cpt:
+                            if nb_ngh_above != 8:
+                                Iso_var = sum_all_ngh_below/(8-nb_ngh_above)
+                                #print("CaloTower ", l , " after ",all_nb_shift , " shifts")
+                                #print("Computing iso var for seed",new_index ," id phi : ",idx_phi ," and id eta : ",idx_eta ," with", (8-nb_ngh_above), " neighbours outside thresholds, their sum = ","%.2f" % sum_all_ngh_below, " iso = ", Iso_var)
+                                CountIsoNum(Iso_var,nb_belo_iso_tab)
+                                CountIsoNum(Iso_var,nb_belo_iso_tab_tot)
+                               
+
+                                if Iso_var < 1:
+                                    nb_seed_iso += 1 
+
+                                 
+                                min_dr_nd = 999999
+                                if gen_vec:
+                                    totnb_tower_evt_atleast_1_gen_hscp += 1
+                                    CountIsoNum(Iso_var,nb_belo_iso_tab_gen)
+                                    CountIsoNum(Iso_var,nb_belo_iso_tab_gen_tot)
+   
                                     for k in range(len(GEN_HSCPVector)):
                                         dr_nd = deltaR(deltaR2(new_eta,new_phi,GEN_HSCPVector[k][2],GEN_HSCPVector[k][1]))
                                         if dr_nd < min_dr_nd:
                                             min_dr_nd = dr_nd
                                             cdt_nd = GEN_HSCPVector[k]
     
-                                    if min_dr_nd < 0.2:
+                                    if min_dr_nd < 0.3:
+                                        if CaloMET is not None:
+                                            calomet_gen_hscp_matched.Fill(CaloMET[0].et())
                                         nb_matched_seed,nb_matched_pe,nb_seed_iso_matched = nb_matched_seed+1, nb_matched_pe+1, nb_seed_iso_matched+1
                                         dr_min_matched_iso_hscp_tower.Fill(min_dr_nd)
                                         GEN_HSCPVector.remove(cdt_nd)
@@ -613,56 +635,89 @@ if __name__ == "__main__":
                                     else:
                                         dr_min_iso_hscp_tower.Fill(min_dr_nd)
                                         Sum_Energy_8_neighbours_threshold.Fill(Iso_var)
-
-                                else:
-                                    Sum_Energy_8_neighbours_threshold.Fill(-5)
+                                    
+                                min_dr_nd_reco = 999999
+                                if reco_vec:
+                                    totnb_tower_evt_atleast_1_reco_hscp += 1
+                                    CountIsoNum(Iso_var,nb_belo_iso_tab_reco)
+                                    CountIsoNum(Iso_var,nb_belo_iso_tab_reco_tot)
+                                    for p in range(len(HSCPVector)):
+                                        dr_nd_reco = deltaR(deltaR2(new_eta,new_phi,HSCPVector[p][2],HSCPVector[p][1]))
+                                        if dr_nd_reco < min_dr_nd_reco:
+                                            min_dr_nd_reco = dr_nd_reco
+                                            cdt_nd_reco = HSCPVector[p]
     
-     
-                if generator_hscp_ch == 2:
-
-                    nb_matched_seed_2_charged.Fill(nb_matched_pe)
-                if generator_hscp_ch == 1:
-                    nb_matched_seed_1_charged.Fill(nb_matched_pe)
-
-
-                NB_iso_below_vs_nb_gen_hscp.Fill(nb_belo_iso_tab[3],generator_hscp_ch)
-                NB_iso_below_vs_nb_seed.Fill(nb_belo_iso_tab[3],nb_tower_evt)
-                NB_iso_below_07_per_event.Fill(nb_belo_iso_tab[3])
-                NB_iso_below_05_per_event.Fill(nb_belo_iso_tab[2])
-                NB_iso_below_03_per_event.Fill(nb_belo_iso_tab[1])
-                NB_iso_below_015_per_event.Fill(nb_belo_iso_tab[0])
+                                    if min_dr_nd_reco < 0.3:
+                                        if CaloMET is not None:
+                                            calomet_reco_hscp_matched.Fill(CaloMET[0].et())
+                                        nb_matched_reco_seed,nb_matched_reco_pe,nb_seed_iso_matched_reco = nb_matched_reco_seed+1, nb_matched_reco_pe+1, nb_seed_iso_matched_reco+1
+                                        dr_min_matched_iso_reco_hscp_tower.Fill(min_dr_nd_reco)
+                                        HSCPVector.remove(cdt_nd_reco)
+                                        Sum_Energy_8_neighbours_threshold_HSCP_RECO_ISO_matched.Fill(Iso_var)
     
-    
-                NB_non_phys_vs_nb_tower_passing.Fill(nb_non_phys,nb_tower_evt)
-                CaloVectorAll.clear()
-                #print("For Event nb ", eventnr, " there was ", nb_matched_pe , " matched seed for ", generator_hscp_ch, "charged hscp") 
-                NB_GEN_HSCP_vs_matched_seed.Fill(generator_hscp_ch,nb_matched_pe)
-                NB_GEN_HSCP_vs_NBTOWER.Fill(generator_hscp_ch,nb_tower_evt)
+                                    else:
+                                        Sum_Energy_8_neighbours_threshold_HSCP_RECO_ISO.Fill(Iso_var)
+
+       
+
+                            else:
+                                Sum_Energy_8_neighbours_threshold.Fill(-5)
+
+
  
-                NB_GEN_HSCP_vs_NBTOWER_isovar03.Fill(generator_hscp_ch,nb_belo_iso_tab[1])
-                NB_GEN_HSCP_vs_NBTOWER_isovar05.Fill(generator_hscp_ch,nb_belo_iso_tab[2])
-                NB_GEN_HSCP_vs_NBTOWER_isovar07.Fill(generator_hscp_ch,nb_belo_iso_tab[3])
-                NB_GEN_HSCP_vs_NBTOWER_isovar09.Fill(generator_hscp_ch,nb_belo_iso_tab[4])
+
+            if generator_hscp_clean_ch == 2:
+                nb_matched_seed_2_charged.Fill(nb_matched_pe)
+            if generator_hscp_clean_ch == 1:
+                nb_matched_seed_1_charged.Fill(nb_matched_pe)
+
+            if reco_hscp_clean_ch == 2:
+                nb_matched_seed_2_charged_reco.Fill(nb_matched_reco_pe)
+            if reco_hscp_clean_ch == 1:
+                nb_matched_seed_1_charged_reco.Fill(nb_matched_reco_pe)
+
+
+            NB_iso_below_vs_nb_gen_hscp.Fill(nb_belo_iso_tab[3],generator_hscp_clean_ch)
+            NB_iso_below_vs_nb_seed.Fill(nb_belo_iso_tab[3],nb_tower_evt)
+            NB_iso_below_07_per_event.Fill(nb_belo_iso_tab[3])
+            NB_iso_below_05_per_event.Fill(nb_belo_iso_tab[2])
+            NB_iso_below_03_per_event.Fill(nb_belo_iso_tab[1])
+            NB_iso_below_015_per_event.Fill(nb_belo_iso_tab[0])
     
+            NB_non_phys_vs_nb_tower_passing.Fill(nb_non_phys,nb_tower_evt)
+            CaloVectorAll.clear()
+            #print("For Event nb ", eventnr, " there was ", nb_matched_pe , " matched seed for ", generator_hscp_ch, "charged hscp") 
+
+
+            if reco_vec:
+                NB_CLEAN_RECO_HSCP_vs_NBTOWER.Fill(reco_hscp_clean_ch,nb_tower_evt_reco_min_1)
+                NB_RECO_HSCP_vs_matched_seed.Fill(reco_hscp_clean_ch,nb_matched_reco_pe)
+
+                NB_RECO_cleanHSCP_vs_NBTOWER_isovar07.Fill(reco_hscp_clean_ch,nb_belo_iso_tab_reco[3])
+                NB_RECO_cleanHSCP_vs_NBTOWER_isovar05.Fill(reco_hscp_clean_ch,nb_belo_iso_tab_reco[2])
+                NB_RECO_cleanHSCP_vs_NBTOWER_isovar03.Fill(reco_hscp_clean_ch,nb_belo_iso_tab_reco[1])
+
+                NB_RECO_HSCP_vs_NBTOWER_isovar03.Fill(hscparticle.size(),nb_belo_iso_tab_reco[1])
+                NB_RECO_HSCP_vs_NBTOWER_isovar05.Fill(hscparticle.size(),nb_belo_iso_tab_reco[2])
+                NB_RECO_HSCP_vs_NBTOWER_isovar07.Fill(hscparticle.size(),nb_belo_iso_tab_reco[3])
+                NB_RECO_HSCP_vs_NBTOWER.Fill(hscparticle.size(),nb_tower_evt_reco_min_1)
+
+
+            if gen_vec:
+                NB_GEN_HSCP_vs_matched_seed.Fill(generator_hscp_clean_ch,nb_matched_pe)
+                NB_GEN_HSCP_vs_NBTOWER.Fill(generator_hscp_clean_ch,nb_tower_evt_gen_min_1)
+
+                NB_GEN_HSCP_vs_NBTOWER_isovar03.Fill(generator_hscp_clean_ch,nb_belo_iso_tab_gen[1])
+                NB_GEN_HSCP_vs_NBTOWER_isovar05.Fill(generator_hscp_clean_ch,nb_belo_iso_tab_gen[2])
+                NB_GEN_HSCP_vs_NBTOWER_isovar07.Fill(generator_hscp_clean_ch,nb_belo_iso_tab_gen[3])
+                NB_GEN_HSCP_vs_NBTOWER_isovar09.Fill(generator_hscp_clean_ch,nb_belo_iso_tab_gen[4])
+
     
-                NB_RECO_cleanHSCP_vs_NBTOWER_isovar07.Fill(len(HSCPVector),nb_belo_iso_tab[3])
-                NB_RECO_cleanHSCP_vs_NBTOWER_isovar05.Fill(len(HSCPVector),nb_belo_iso_tab[2])
-                NB_RECO_cleanHSCP_vs_NBTOWER_isovar03.Fill(len(HSCPVector),nb_belo_iso_tab[1])
-    
-    
-                NB_RECO_HSCP_vs_NBTOWER_isovar03.Fill(hscparticle.size(),nb_belo_iso_tab[1])
-                NB_RECO_HSCP_vs_NBTOWER_isovar05.Fill(hscparticle.size(),nb_belo_iso_tab[2])
-                NB_RECO_HSCP_vs_NBTOWER_isovar07.Fill(hscparticle.size(),nb_belo_iso_tab[3])
-                NB_RECO_HSCP_vs_NBTOWER.Fill(hscparticle.size(),nb_tower_evt)
-    
-    
-                nb_towers_cut_per_Event.Fill(nb_tower_evt)
+            nb_towers_cut_per_Event.Fill(nb_tower_evt)
 
 
 
         GEN_HSCPVector.clear()
-
-
 
 
 
@@ -680,14 +735,47 @@ if __name__ == "__main__":
 
     print("We studied CaloTowers above ",min_mip, "MIP , and their neighbours above ", min_mip_ngh, " MIP , and sum (ECALL + HCAL) <",max_sum_mip, " MIP")
     print("There were in total : ", totnb_tower_evt , " seeds passing thresholds \n")
+    print("With cut IsoV < 0.1 :", nb_belo_iso_tab_tot[0])
+    print("With cut IsoV < 0.3 :", nb_belo_iso_tab_tot[1])
+    print("With cut IsoV < 0.5 :", nb_belo_iso_tab_tot[2])
+    print("With cut IsoV < 0.7 :", nb_belo_iso_tab_tot[3])
+    print("With cut IsoV < 0.9 :", nb_belo_iso_tab_tot[4])
+    print("-----------------------------------------\n Events with at least 1 charged GEN HSCP \n")
+    
+    print("There was ", totnb_tower_evt_atleast_1_gen_hscp, " seeds with at least 1 charged gen HSCP")
+    print("With cut IsoV < 0.1 :", nb_belo_iso_tab_gen_tot[0])
+    print("With cut IsoV < 0.3 :", nb_belo_iso_tab_gen_tot[1])
+    print("With cut IsoV < 0.5 :", nb_belo_iso_tab_gen_tot[2])
+    print("With cut IsoV < 0.7 :", nb_belo_iso_tab_gen_tot[3])
+    print("With cut IsoV < 0.9 :", nb_belo_iso_tab_gen_tot[4])
+    print("\n") 
+    print("-----------------------------------------\n Events with at least 1 charged RECO HSCP \n")
+    print("There was ", totnb_tower_evt_atleast_1_reco_hscp, " seeds with at least 1 charged reco HSCP")
+    print("With cut IsoV < 0.1 :", nb_belo_iso_tab_reco_tot[0])
+    print("With cut IsoV < 0.3 :", nb_belo_iso_tab_reco_tot[1])
+    print("With cut IsoV < 0.5 :", nb_belo_iso_tab_reco_tot[2])
+    print("With cut IsoV < 0.7 :", nb_belo_iso_tab_reco_tot[3])
+    print("With cut IsoV < 0.9 :", nb_belo_iso_tab_reco_tot[4])
+
+    print("ON GENERATOR LEVEL : \n")
+    print("----------------------------------------\n") 
+    if totnb_tower_evt: 
+        print("Efficiency (nb gen charged hscp cleaned/nb seed) = ", nb_ch_clean_hscp,"/",totnb_tower_evt, " = " ,(nb_ch_clean_hscp/totnb_tower_evt)*100, " %")
+        print("Now efficiency (nb matched seed / nb seed) = ",nb_matched_seed, "/", totnb_tower_evt," = ", (nb_matched_seed/totnb_tower_evt)*100 , " %")
+    if nb_ch_clean_hscp:
+        print("Efficiency (nb matched seed/nb gen charged hscp cleaned) = ",nb_matched_seed, "/",nb_ch_clean_hscp, " = " ,(nb_matched_seed/nb_ch_clean_hscp)*100, " %")
+
+    print("----------------------------------------\n") 
+    print("ON RECO AFTER PRESEL LEVEL : \n")
+    print("++++++++++++++++++++++++++++++++++++++++\n") 
  
     if totnb_tower_evt: 
-        print("Efficiency (nb charged hscp/nb seed) = ",nb_ch_hscp,"/",totnb_tower_evt, " = " ,(nb_ch_hscp/totnb_tower_evt)*100, " %")
-        print("Now efficiency (nb matched seed / nb seed) = ",nb_matched_seed, "/", totnb_tower_evt," = ", (nb_matched_seed/totnb_tower_evt)*100 , " %")
-    if nb_ch_hscp:
-        print("Efficiency (nb matched seed/nb charged hscp) = ",nb_matched_seed, "/",nb_ch_hscp, " = " ,(nb_matched_seed/nb_ch_hscp)*100, " %")
+        print("Efficiency (nb reco charged hscp cleaned/nb seed) = ", nb_ch_clean_reco_hscp,"/",totnb_tower_evt, " = " ,(nb_ch_clean_reco_hscp/totnb_tower_evt)*100, " %")
+        print("Now efficiency (nb matched seed / nb seed) = ",nb_matched_reco_seed, "/", totnb_tower_evt," = ", (nb_matched_reco_seed/totnb_tower_evt)*100 , " %")
+    if nb_ch_clean_reco_hscp:
+        print("Efficiency (nb matched seed/nb reco charged hscp) = ",nb_matched_reco_seed, "/",nb_ch_clean_reco_hscp, " = " ,(nb_matched_reco_seed/nb_ch_clean_reco_hscp)*100, " %")
 
-
+    print("++++++++++++++++++++++++++++++++++++++++\n") 
     print("ON ALL CALO TOWERS \n")
     print("--------------- DIRECT GOOD EVENTS ---------------")
 
@@ -696,6 +784,10 @@ if __name__ == "__main__":
     print("--------------- BAD EVENTS WHERE WE HAVE TO CHOOSE  ---------------")
     print(nb_cdt_out_2by2[1], " were seeds with 2 non-adjacent neighbours, pick the one with ratio ecal/hcal closer to initial seed, ", nb_cdt_out_2by2[2], " were seeds with 3 neighbours, where we have to chose (either 3 solo seeds, or 3 in a line or 2 adjacent and 1 not diagonal)\n")
 
+
+
+
+    '''
     print("ON HSCP MATCHED + ISO CALO TOWERS \n")
     print("--------------- DIRECT GOOD EVENTS ---------------")
 
@@ -703,5 +795,5 @@ if __name__ == "__main__":
 
     print("--------------- BAD EVENTS WHERE WE HAVE TO CHOOSE  ---------------")
     print(nb_cdt_out_2by2_hscp_iso[1], " were seeds with 2 non-adjacent neighbours, pick the one with ratio ecal/hcal closer to initial seed, ", nb_cdt_out_2by2_hscp_iso[2], " were seeds with 3 neighbours, where we have to chose (either 3 solo seeds, or 3 in a line, or 2 adjacent and 1 not diagonal)")
-
+    '''
     print("There was ",nb_hscp_pre_iso, " pair hscp-tower pre iso, and ", nb_hscp_after_iso, " pair hscp-tower aftert iso")

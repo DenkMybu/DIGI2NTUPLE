@@ -76,7 +76,9 @@ process.CustomKeep = cms.PSet(
     outputCommands = cms.untracked.vstring(
     'keep *_hltTowerMakerForAll_*_*',
     'keep GlobalAlgBlk_hltGtStage2Digis_*_HLT',
-    'keep GlobalExtBlk_hltGtStage2Digis_*_HLT'
+    'keep GlobalExtBlk_hltGtStage2Digis_*_HLT',
+    'keep *_hltMet_*_HLT',
+    'drop TriggerFilterObjectWithRefs_*_*_*'
     ),
     eventAutoFlushCompressedSize=cms.untracked.int32(30*1024*1024),
     compressionAlgorithm=cms.untracked.string("LZMA"),
@@ -96,7 +98,7 @@ process.AODSIMoutput = cms.OutputModule("PoolOutputModule",
     ),
     eventAutoFlushCompressedSize = cms.untracked.int32(31457280),
     #fileName = cms.untracked.string('file:HSCP_Gluino_Mass1800_AOD_towers.root'),
-    fileName = cms.untracked.string('file:HSCP_Gluino_Mass1800_AOD_towers_2.root'),
+    fileName = cms.untracked.string('file:HSCP_Gluino_Mass1800_AOD_CT_MET.root'),
     outputCommands = process.AODSIMEventContent.outputCommands 
 )
 process.AODSIMoutput.outputCommands.extend(process.CustomKeep.outputCommands)
@@ -115,7 +117,7 @@ process.AODSIMoutput.outputCommands.extend(
     'keep *_offlinePrimaryVertices_*_*',
     'keep recoTracks_generalTracks_*_*',
     'keep recoTracks_standAloneMuons_*_*',
-    'keep recoTrackExtras_standAloneMuons_*_*',
+    'me = cms.untracked.string('file:HSCP_Gluino_Mass1800_AOD_CT_MET.root'),keep recoTrackExtras_standAloneMuons_*_*',
     'keep TrackingRecHitsOwned_standAloneMuons_*_*',
     'keep recoTracks_globalMuons_*_*',
     'keep recoTrackExtras_globalMuons_*_*',
