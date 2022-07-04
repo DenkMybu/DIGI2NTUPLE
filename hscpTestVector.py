@@ -102,7 +102,8 @@ if __name__ == "__main__":
 
     HSCP_ISO_Number_non_physical_event = TH1F("Number_tower_more_3_ngh_hscp_iso","# of non-physical event",2,0,2)
     Number_non_physical_event = TH1F("Number_tower_more_3_ngh","# of non-physical event",2,0,2)
-    
+   
+ 
 
     if reverse_bool:
         E_Ecal_dr01 = TH1F("E_ECAL_dr01_genhscp_tower","Energy in Ecal for all calo towers - hscp dr < 0.1",80,0,4) 
@@ -253,8 +254,10 @@ if __name__ == "__main__":
     #============ END CALO TOWER HISTOS ===========
   
     #=============== START MET HISTOS ================
+    eff_metfilter_vs_calo_met = TEfficiency("eff","efficiency of hltMET90 filter;hlt calo met;hltMET90;#epsilon",100,0,800)
 
-
+    calomet_gen_hscp_raw = TH1F('caloMET_gen_hscp_raw','hlt Calo MET for events with at least 1 gen hscp - seed', 500,0,500)
+    calomet_reco_hscp_raw = TH1F('caloMET_reco_hscp_raw','hlt Calo MET for events with at least 1 reco hscp - seed', 500,0,500)
 
     calomet_gen_hscp_matched = TH1F('caloMET_gen_hscp_matched','hlt Calo MET for matched gen hscp - seed', 500,0,500)
     calomet_reco_hscp_matched = TH1F('caloMET_reco_hscp_matched','hlt Calo MET for matched reco hscp - seed', 500,0,500)
@@ -344,7 +347,8 @@ if __name__ == "__main__":
 
     nb_seed_iso_matched , nb_seed_iso , nb_seed_iso_matched_reco = 0 , 0 , 0
 
-    nb_evt_min_1_reco_hscp = 0
+    nb_evt_min_1_reco_hscp_presel = 0
+    nb_evt_min_1_reco_hscp_raw = 0
 
     min_1_seed = 0
     
@@ -356,20 +360,29 @@ if __name__ == "__main__":
     nb_belo_iso_tab_gen_tot , nb_belo_iso_tab_reco_tot = [0] * 5 , [0] * 5
 
     nb_tower_evt_cut , nb_belo_iso_tab_tot = [0] * 6 , [0] * 5
-  
+ 
+    denom_raw_evt=0
+ 
     or_met_ct_num_reco , met_filter_num , ct_filter_num , and_met_ct_num_reco , denom_presel_evt, denom_presel_evt_L1  = 0 , 0 , 0 , 0 , 0 , 0
     met_filter_num_L1 , ct_filter_num_l1 = 0,0
+    met_filter_num_presel,met_filter_denom_presel = 0,0
+    met_filter_denom_l1_raw,met_filter_num_l1_raw = 0,0
     or_met_ct_seed_num_reco , and_met_ct_seed_num_reco = 0,0 
     or_met_ct_seed_num_reco_nol1 , and_met_ct_seed_num_reco_nol1 = 0,0 
     or_met_ct_num_reco_nol1 , and_met_ct_num_reco_nol1 = 0,0
-    
+   
+    or_first_l1_pfmet_num, or_first_l1_pfmet_denom = 0,0
+    or_first_l1_pfmet_num_1_hscp_pe, or_first_l1_pfmet_denom_1_hscp_pe = 0,0
+    or_first_l1_pfmet_num_presel, or_first_l1_pfmet_denom_presel = 0,0
+
+ 
     seed_filter_num = 0 
     seed_filter_num_l1 = 0
     for eventnr,event in enumerate(events):#events
         evtdata.get_handles(events)
 
         OR_L1_PFMET ,bool_min_1_seed ,min_1_seed_evt , seed_bool =  False, False, True, True
-        
+        OR_L1_PFMET_PRESEL = False
         nb_fake_evt , nb_tower_evt , nb_tower_evt_gen_min_1 , nb_tower_evt_reco_min_1 = 0 , 0 , 0 , 0
         nb_matched_pe, nb_matched_reco_pe = 0,0
 
@@ -382,9 +395,10 @@ if __name__ == "__main__":
 
 
         '''
-        if eventnr == 1000:
+        if eventnr == 10000:
             break
         '''
+
 
         '''
         l1muons_allbx = evtdata.get("l1muon")
@@ -399,11 +413,10 @@ if __name__ == "__main__":
 
 
 
-        if (l1dec_final[ListBit[3]] == True or l1dec_final[ListBit[5]] == True or l1dec_final[ListBit[7]] == True or l1dec_final[ListBit[10]] == True or l1dec_final[ListBit[11]] == True):
-            OR_L1_PFMET = True
 
+        
 
-
+        
         #print("Event # ", eventnr)
         if eventnr%1000 == 0 :
             print((eventnr/events.size())*100," %")
@@ -411,8 +424,19 @@ if __name__ == "__main__":
 
         hscparticle , hscp_iso , GenParticles , CaloTowers , GenParticlesMC , CaloMET = evtdata.get("hscp") , evtdata.get("hscpIso") , evtdata.get("GenP") , evtdata.get("calotower") , evtdata.get("genPmc"), evtdata.get("CaloMET")
 
+        hltcalomet_objs = TrigTools.get_objs_passing_filter_aod(evtdata,"hltMET90")
+        #print("Number of objects passing fitler hltMet90 :", len(hltcalomet_objs))
+        #print("HLT Calo MET (from collection reco::calomet) = ", CaloMET[0].et())
+        pass_hltmetfilter = False
+        if len(hltcalomet_objs) != 0:
+            pass_hltmetfilter = True
 
-
+        eff_metfilter_vs_calo_met.Fill(pass_hltmetfilter,CaloMET[0].et())
+        ''' 
+        print("hlt calo met for this event :", CaloMET[0].et())
+        for i in range(SizeArrays):
+            print("L1 seed ", ListNames[i], " has bool = ", l1dec_final[ListBit[i]])
+        '''
          
         #--------------- MET STUDY -------------------
         '''
@@ -494,22 +518,48 @@ if __name__ == "__main__":
         Number_RECO_HSCP_per_event.Fill(hscparticle.size())
         
         # RECO HSCP CANDIDATES CLEANING FOR EFFICIENCY N+1
+        HSCPVector_raw = []
         HSCPVector = []
         for i in  range(hscparticle.size()):
             if hscparticle[i].trackRef().isNonnull():
                 track_hscp = hscparticle[i].trackRef()
                 iso_hscp = hscp_iso.get(track_hscp.key())
+                HSCPVector_raw.append((i,track_hscp.phi(),track_hscp.eta()))
                 if track_hscp.pt() > 55 and (iso_hscp.Get_ECAL_Energy() + iso_hscp.Get_HCAL_Energy())/track_hscp.p() < 0.3 and track_hscp.numberOfValidHits() > 8 and track_hscp.quality(2) and track_hscp.dxy() < 0.5 and track_hscp.dz() < 0.5 and abs(track_hscp.eta()) < 2.1 :
                     HSCPVector.append((i,track_hscp.phi(),track_hscp.eta()))
+                
 
         Number_RECO_HSCP_cleaned_per_event.Fill(len(HSCPVector))
 
         reco_hscp_clean_ch = len(HSCPVector)
         nb_ch_clean_reco_hscp += len(HSCPVector)
+
+
         #END OF RECO HSCP CANDIDATES CLEANING
+        or_first_l1_pfmet_denom+=1
+        if (l1dec_final[ListBit[3]] == True or l1dec_final[ListBit[5]] == True or l1dec_final[ListBit[7]] == True or l1dec_final[ListBit[10]] == True or l1dec_final[ListBit[11]] == True):
+            OR_L1_PFMET = True
+            or_first_l1_pfmet_num +=1
+
+        if len(HSCPVector_raw) !=0:
+            or_first_l1_pfmet_num_1_hscp_pe +=1
+            if (l1dec_final[ListBit[3]] == True or l1dec_final[ListBit[5]] == True or l1dec_final[ListBit[7]] == True or l1dec_final[ListBit[10]] == True or l1dec_final[ListBit[11]] == True):
+                or_first_l1_pfmet_num_1_hscp_pe +=1
+
+        if len(HSCPVector) !=0:
+            or_first_l1_pfmet_denom_presel +=1
+            if (l1dec_final[ListBit[3]] == True or l1dec_final[ListBit[5]] == True or l1dec_final[ListBit[7]] == True or l1dec_final[ListBit[10]] == True or l1dec_final[ListBit[11]] == True):
+                or_first_l1_pfmet_num_presel +=1
+                OR_L1_PFMET_PRESEL=True
+
 
         nb_hscp_evt=0
 
+
+        if len(HSCPVector_raw) !=0:
+           if CaloMET is not None:
+               calomet_reco_hscp_raw.Fill(CaloMET[0].et()) 
+        
 
         if len(GEN_HSCPVector) != 0:
             gen_vec = True
@@ -518,6 +568,7 @@ if __name__ == "__main__":
 
         HSCPVector_eff = []
         HSCPVector_eff = HSCPVector[:]
+
         if len(HSCPVector) != 0:
             reco_vec = True
         else:
@@ -750,34 +801,25 @@ if __name__ == "__main__":
 
     
             nb_towers_cut_per_Event.Fill(nb_tower_evt)
+        if len(HSCPVector_raw) != 0:
+            nb_evt_min_1_reco_hscp_raw+=1
+            denom_raw_evt+=1
+
+            if CaloMET is not None:
+                if OR_L1_PFMET:
+                    met_filter_denom_l1_raw +=1
+                    if len(hltcalomet_objs) != 0:
+                    #if CaloMET[0].et() > 90:
+                        met_filter_num_l1_raw += 1
+                if len(hltcalomet_objs) != 0:         
+                #if CaloMET[0].et() > 90:
+                    met_filter_num+=1
+
+
 
         if len(HSCPVector_eff) !=0:
-            nb_evt_min_1_reco_hscp+=1 
+            nb_evt_min_1_reco_hscp_presel+=1 
             denom_presel_evt += 1  #Denominator is HSCP passing preselection AND first L1 seed
-
-            '''
-            if OR_L1_PFMET:
-                denom_presel_evt_L1 += 1
-                if CT_matched:
-                    ct_filter_num_l1+=1
-                    if CaloMET is not None:
-                        if CaloMET[0].et() > 90:
-                            and_met_ct_num_reco+=1
-
-                if bool_min_1_seed:
-                    seed_filter_num_l1+=1 
-                    if CaloMET is not None:
-                        if CaloMET[0].et() > 90:
-                            and_met_ct_seed_num_reco+=1
-
-            else:
-                
-                if bool_min_1_seed:
-                    seed_filter_num+=1
-                     
-                if CT_matched:
-                    ct_filter_num+=1
-            '''
             #------------------------------------------------------------------------
 
             if OR_L1_PFMET:
@@ -791,7 +833,8 @@ if __name__ == "__main__":
                     seed_filter_num_l1+=1
 
                 if CaloMET is not None:
-                    if CaloMET[0].et() > 90:
+                    #if CaloMET[0].et() > 90:
+                    if len(hltcalomet_objs) != 0:
                         and_met_ct_seed_num_reco_nol1+=1
                         if OR_L1_PFMET:
                             and_met_ct_seed_num_reco += 1
@@ -799,7 +842,8 @@ if __name__ == "__main__":
             if CT_matched:
                 ct_filter_num+=1
                 if CaloMET is not None:
-                    if CaloMET[0].et() > 90:
+                    #if CaloMET[0].et() > 90:
+                    if len(hltcalomet_objs) != 0:
                         and_met_ct_num_reco_nol1+=1
                         if OR_L1_PFMET:
                             and_met_ct_num_reco+=1
@@ -815,17 +859,18 @@ if __name__ == "__main__":
                     if OR_L1_PFMET:
                         or_met_ct_num_reco+=1
             else:
-                if CaloMET[0].et() > 90: #Filter hltMet90 check
-                    met_filter_num+=1
+                #if CaloMET[0].et() > 90: #Filter hltMet90 check
+                if len(hltcalomet_objs) != 0:
+                    met_filter_num_presel+=1
                     if OR_L1_PFMET:
                         met_filter_num_L1+=1
 
-                if bool_min_1_seed or CaloMET[0].et() > 90:
+                if bool_min_1_seed or len(hltcalomet_objs) != 0: #CaloMET[0].et() > 90:
                     or_met_ct_seed_num_reco_nol1+=1
                     if OR_L1_PFMET:
                         or_met_ct_seed_num_reco+=1
 
-                if CT_matched or CaloMET[0].et() > 90:
+                if CT_matched or len(hltcalomet_objs) != 0: #CaloMET[0].et() > 90:
                     or_met_ct_num_reco_nol1+=1
                     if OR_L1_PFMET:
                         or_met_ct_num_reco+=1
@@ -848,26 +893,45 @@ if __name__ == "__main__":
     hfile.Write()
     print("We studied CaloTowers above ",min_mip, "MIP , and their neighbours above ", min_mip_ngh, " MIP , and sum (ECALL + HCAL) <",max_sum_mip, " MIP\n")
 
+
+    err_eff_or_etmhf = math.sqrt(((or_first_l1_pfmet_num/or_first_l1_pfmet_denom) * ( 1 - (or_first_l1_pfmet_num/or_first_l1_pfmet_denom)))/or_first_l1_pfmet_denom)
+
+    err_eff_or_etmhf_presel = math.sqrt(((or_first_l1_pfmet_num_presel/or_first_l1_pfmet_denom_presel) * ( 1 - (or_first_l1_pfmet_num_presel/or_first_l1_pfmet_denom_presel)))/or_first_l1_pfmet_denom_presel)
+    print("ON ALL EVENTS WITH AT LEAST 1 RECO HSCP, NO PRESELECTION\n")
+
+    print("Efficiency per event of L1_ETMHF100 OR L1_ETMHF110 OR L1_ETM150 OR L1_ETMHF120 OR L1_ETMHF150 ON ALL EVENTS= ", or_first_l1_pfmet_num, " / ", or_first_l1_pfmet_denom, " = ", (or_first_l1_pfmet_num/or_first_l1_pfmet_denom)*100, " % ± ", "%.2f" % (err_eff_or_etmhf*100) ,"% \n") 
+
+    if denom_raw_evt !=0:
+        eff_met = met_filter_num/denom_raw_evt
+        err_eff_met = math.sqrt(((met_filter_num/denom_raw_evt) * ( 1 - (met_filter_num/denom_raw_evt)))/denom_raw_evt)
+        print("hltMet90 filter efficiency = ",met_filter_num, " / ", denom_raw_evt, " = ","%.2f" % (eff_met*100) , " % ± ","%.2f" % (err_eff_met*100), " % \n")
+
+    print("hltMet90 AFTER first L1 seed : ", met_filter_num_l1_raw, " / " , met_filter_denom_l1_raw, " = " , (met_filter_num_l1_raw/met_filter_denom_l1_raw)*100, " %")
+
+    print("--------- EVENTS WITH 1 HSCP PASSING PRESELECTION ---------\n")
+  
+    print("Efficiency per event of L1_ETMHF100 OR L1_ETMHF110 OR L1_ETM150 OR L1_ETMHF120 OR L1_ETMHF150 PRESELECTION", or_first_l1_pfmet_num_presel, " / ", or_first_l1_pfmet_denom_presel, " = ", (or_first_l1_pfmet_num_presel/or_first_l1_pfmet_denom_presel)*100, " % ± ", "%.2f" % (err_eff_or_etmhf_presel*100) ,"% \n") 
+    
     print("============ ON ALL HSCP PASSING PRESELECTION, NO L1 REQUIRED ============ \n")
 
     if denom_presel_evt != 0:
-        eff_met = met_filter_num/denom_presel_evt
-        err_eff_met = math.sqrt(((met_filter_num/denom_presel_evt) * ( 1 - (met_filter_num/denom_presel_evt)))/denom_presel_evt)
+        eff_met_presel = met_filter_num_presel/denom_presel_evt
+        err_eff_met_presel = math.sqrt(((met_filter_num_presel/denom_presel_evt) * ( 1 - (met_filter_num_presel/denom_presel_evt)))/denom_presel_evt)
 
-        print("hltMet90 filter efficiency = ",met_filter_num, " / ", denom_presel_evt, " = ","%.2f" % (eff_met*100) , " % ± ","%.2f" % (err_eff_met*100), " % \n")
+        print("hltMet90 filter efficiency = ",met_filter_num_presel, " / ", denom_presel_evt, " = ","%.2f" % (eff_met_presel*100) , " % ± ","%.2f" % (err_eff_met_presel*100), " % \n")
 
         eff_ct_matched = ct_filter_num/denom_presel_evt
         err_eff_ct_matched = math.sqrt(((ct_filter_num/denom_presel_evt) * ( 1 - (ct_filter_num/denom_presel_evt)))/denom_presel_evt)
-        print("CT matched filter efficiency = ",ct_filter_num, " / ", denom_presel_evt, " = ","%.2f" % (eff_ct_matched*100) , " % ± ","%.2f" % (err_eff_ct_matched*100) , " \n")
+        print("CT matched filter efficiency = ",ct_filter_num, " / ", denom_presel_evt, " = ","%.2f" % (eff_ct_matched*100) , " % ± ","%.2f" % (err_eff_ct_matched*100) , " % \n")
         
         eff_seed_evt = seed_filter_num/denom_presel_evt
         err_eff_seed_evt = math.sqrt(((seed_filter_num/denom_presel_evt) * ( 1 - (seed_filter_num/denom_presel_evt)))/denom_presel_evt)
-        print("CT 1 seed at least, no matching = ", seed_filter_num, " / ", denom_presel_evt, " = ","%.2f" % (eff_seed_evt*100), " % ± ","%.2f" % (err_eff_seed_evt*100),"\n")
+        print("CT 1 seed at least, no matching = ", seed_filter_num, " / ", denom_presel_evt, " = ","%.2f" % (eff_seed_evt*100), " % ± ","%.2f" % (err_eff_seed_evt*100)," % \n")
 
         print("------------ OR and AND efficiencies between hltMet90 and 1 seed at least per event ------------\n")
 
-        print("hltMet90 || ct_01 matched = ",or_met_ct_seed_num_reco_nol1," / ",denom_presel_evt , " = ", (or_met_ct_seed_num_reco_nol1/denom_presel_evt)*100 , " % ± " , math.sqrt((((or_met_ct_seed_num_reco_nol1/denom_presel_evt) * (1-(or_met_ct_seed_num_reco_nol1/denom_presel_evt)))/denom_presel_evt)))
-        print("\n")
+        
+        print("hltMet90 || ct_01 matched = ",or_met_ct_seed_num_reco_nol1," / ",denom_presel_evt , " = ", (or_met_ct_seed_num_reco_nol1/denom_presel_evt)*100 , " % ± " , (math.sqrt((((or_met_ct_seed_num_reco_nol1/denom_presel_evt) * (1-(or_met_ct_seed_num_reco_nol1/denom_presel_evt)))/denom_presel_evt))*100) , " % \n")
     
         print("hltMet90 && ct_01 = ",and_met_ct_seed_num_reco_nol1," / ",denom_presel_evt , " = ", (and_met_ct_seed_num_reco_nol1/denom_presel_evt)*100 , " % ± " , math.sqrt((((and_met_ct_seed_num_reco_nol1/denom_presel_evt) * (1-(and_met_ct_seed_num_reco_nol1/denom_presel_evt)))/denom_presel_evt)))   
         print("\n")
@@ -923,7 +987,7 @@ if __name__ == "__main__":
     print("++++++++++++ ++++++++++++ ++++++++++++ ++++++++++++ ++++++++++++ ++++++++++++ \n")
     print("\n")
 
-    print("Fraction nb event with 1 seed at least / nb event with 1 hscp passing presel at least = ",min_1_seed, " / " , nb_evt_min_1_reco_hscp, " = ",(min_1_seed/nb_evt_min_1_reco_hscp)*100 , " %" )
+    print("Fraction nb event with 1 seed at least / nb event with 1 hscp passing presel at least = ",min_1_seed, " / " , nb_evt_min_1_reco_hscp_presel, " = ",(min_1_seed/nb_evt_min_1_reco_hscp_presel)*100 , " %" )
     print("\n")
    
     print("There were in total : ", totnb_tower_evt , " seeds passing thresholds \n")

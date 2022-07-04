@@ -99,6 +99,7 @@ process.AODSIMoutput = cms.OutputModule("PoolOutputModule",
     eventAutoFlushCompressedSize = cms.untracked.int32(31457280),
     #fileName = cms.untracked.string('file:HSCP_Gluino_Mass1800_AOD_towers.root'),
     fileName = cms.untracked.string('file:HSCP_Gluino_Mass1800_AOD_CT_MET.root'),
+        print("hltMet90 filter efficiency = ",met_filter_num_presel, " / ", denom_presel_evt, " = ","%.2f" % (eff_met_presel*100) , " % ± ","%.2f" % (err_eff_met_presel*100), " % \n")
     outputCommands = process.AODSIMEventContent.outputCommands 
 )
 process.AODSIMoutput.outputCommands.extend(process.CustomKeep.outputCommands)
