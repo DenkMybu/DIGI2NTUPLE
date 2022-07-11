@@ -50,9 +50,11 @@ if __name__ == "__main__":
 
    
 
-    hfile = TFile( 'CaloStudiesHSCP_iso_vector_1_halfMIP.root', 'RECREATE', 'Output of hscp script to save HLT quantities' )
+    hfile = TFile( 'RUN2_CaloStudiesHSCP_iso_vector_1_halfMIP.root', 'RECREATE', 'Output of hscp script to save HLT quantities' )
 
     SizeArrays = len(ListNames)
+    SizeHLT = len(hlt_trig_names)
+
 
     EventToStudy = sys.argv[4]
     min_mip = float(sys.argv[5])
@@ -286,6 +288,7 @@ if __name__ == "__main__":
         Towers_neighboor_maps[i].GetYaxis().SetTitle("Phi")
     #================ END HISTOS ===============
 
+    trig_res = TrigTools.TrigResults(hlt_trig_names)
 
     hlt_process = "HLT" #replace this with the HLT process name you want
 
@@ -320,6 +323,9 @@ if __name__ == "__main__":
 
     events = Events(CoreTools.get_filenames(args.in_filenames,args.prefix))
 
+ 
+    #------ HLT TRIGGER PATHS AND EFFICIENCIES -------
+
 
     l1menu_tree_file = ROOT.TFile.Open(args.l1menufile)
     l1menu_tree = ROOT.L1TUtmTriggerMenuRcd
@@ -332,13 +338,24 @@ if __name__ == "__main__":
 
     ListBit = [0] * SizeArrays
 
+    ListNumL1 = [0] * SizeArrays
+    ListDenomL1 = [0] * SizeArrays
+
     for x in range(0,SizeArrays):
         ListBit[x] = l1name_to_indx[ListNames[x]]
 
     nbevents = TH1F('nbevent', '# events',30000,20000,50000)
 
+
     print("This is a custom python script that allows the study of different aspects : L1 seed efficiencies, saving additional information about MET/MHT, energy clusters in ECAL/HCAL and more\n")
     print("Number of events to study : ",events.size())
+
+
+    PassHLT,TotHLT = [0] * SizeHLT,[0] * SizeHLT  #Arrays for trigger efficiency    
+    PassHLT_presel,TotHLT_presel = [0] * SizeHLT,[0] * SizeHLT  #Arrays for trigger efficiency    
+
+
+
     nbevents.Fill(events.size())
 
     nb_hscp_pre_iso, nb_hscp_after_iso = 0,0
@@ -362,7 +379,7 @@ if __name__ == "__main__":
     nb_tower_evt_cut , nb_belo_iso_tab_tot = [0] * 6 , [0] * 5
  
     denom_raw_evt=0
- 
+    met_all_evt_num, met_all_evt_denom = 0,0 
     or_met_ct_num_reco , met_filter_num , ct_filter_num , and_met_ct_num_reco , denom_presel_evt, denom_presel_evt_L1  = 0 , 0 , 0 , 0 , 0 , 0
     met_filter_num_L1 , ct_filter_num_l1 = 0,0
     met_filter_num_presel,met_filter_denom_presel = 0,0
@@ -375,6 +392,7 @@ if __name__ == "__main__":
     or_first_l1_pfmet_num_1_hscp_pe, or_first_l1_pfmet_denom_1_hscp_pe = 0,0
     or_first_l1_pfmet_num_presel, or_first_l1_pfmet_denom_presel = 0,0
 
+    nb_evt_all_seeds_denom,nb_evt_all_seeds_num = 0,0
  
     seed_filter_num = 0 
     seed_filter_num_l1 = 0
@@ -394,11 +412,16 @@ if __name__ == "__main__":
         l1dec_final_bxp1 = l1algblk.at(1,0).getAlgoDecisionFinal() if l1algblk.getLastBX()>=1 else None
 
 
+        trig_res.fill(evtdata)
+        for k in range(SizeHLT):
+            TotHLT[k]+=1
+            if trig_res.result(hlt_trig_names[k])==True:
+                PassHLT[k] +=1
+
         '''
         if eventnr == 10000:
             break
         '''
-
 
         '''
         l1muons_allbx = evtdata.get("l1muon")
@@ -411,12 +434,6 @@ if __name__ == "__main__":
             print(f" pt/eta/phi {mu.hwPt()} {mu.hwEta()} {mu.hwPhi()}")
         '''
 
-
-
-
-        
-
-        
         #print("Event # ", eventnr)
         if eventnr%1000 == 0 :
             print((eventnr/events.size())*100," %")
@@ -429,6 +446,8 @@ if __name__ == "__main__":
         #print("HLT Calo MET (from collection reco::calomet) = ", CaloMET[0].et())
         pass_hltmetfilter = False
         if len(hltcalomet_objs) != 0:
+            #print(len(hltcalomet_objs) , " objects passed trigger hltMET90 : \n")
+            #print("Object 1 type : ", type(hltcalomet_objs[0]), " , transverse energy : ", hltcalomet_objs[0].et())
             pass_hltmetfilter = True
 
         eff_metfilter_vs_calo_met.Fill(pass_hltmetfilter,CaloMET[0].et())
@@ -536,6 +555,17 @@ if __name__ == "__main__":
 
 
         #END OF RECO HSCP CANDIDATES CLEANING
+        or_all_l1_seeds = False
+        for m in range(len(ListBit)):
+            ListNumL1[m] +=1
+            if ListBit[m] == True:
+                ListDenomL1[m] +=1
+                or_all_l1_seeds = True
+
+        nb_evt_all_seeds_num +=1
+        if or_all_l1_seeds:
+            nb_evt_all_seeds_denom +=1
+
         or_first_l1_pfmet_denom+=1
         if (l1dec_final[ListBit[3]] == True or l1dec_final[ListBit[5]] == True or l1dec_final[ListBit[7]] == True or l1dec_final[ListBit[10]] == True or l1dec_final[ListBit[11]] == True):
             OR_L1_PFMET = True
@@ -547,6 +577,10 @@ if __name__ == "__main__":
                 or_first_l1_pfmet_num_1_hscp_pe +=1
 
         if len(HSCPVector) !=0:
+            for k in range(SizeHLT):
+                TotHLT_presel[k]+=1
+                if trig_res.result(hlt_trig_names[k])==True:
+                    PassHLT_presel[k] +=1
             or_first_l1_pfmet_denom_presel +=1
             if (l1dec_final[ListBit[3]] == True or l1dec_final[ListBit[5]] == True or l1dec_final[ListBit[7]] == True or l1dec_final[ListBit[10]] == True or l1dec_final[ListBit[11]] == True):
                 or_first_l1_pfmet_num_presel +=1
@@ -816,6 +850,11 @@ if __name__ == "__main__":
                     met_filter_num+=1
 
 
+        met_all_evt_denom+=1
+        if len(hltcalomet_objs) != 0:
+            met_all_evt_num += 1
+
+
 
         if len(HSCPVector_eff) !=0:
             nb_evt_min_1_reco_hscp_presel+=1 
@@ -897,6 +936,18 @@ if __name__ == "__main__":
     err_eff_or_etmhf = math.sqrt(((or_first_l1_pfmet_num/or_first_l1_pfmet_denom) * ( 1 - (or_first_l1_pfmet_num/or_first_l1_pfmet_denom)))/or_first_l1_pfmet_denom)
 
     err_eff_or_etmhf_presel = math.sqrt(((or_first_l1_pfmet_num_presel/or_first_l1_pfmet_denom_presel) * ( 1 - (or_first_l1_pfmet_num_presel/or_first_l1_pfmet_denom_presel)))/or_first_l1_pfmet_denom_presel)
+
+    print("ON ALL EVENTS, NO HSCP REQUIRED\n")
+    print("hltMet91 per event efficiency = ",met_all_evt_num, " / ", met_all_evt_denom, " = ","%.2f" % ((met_all_evt_num/met_all_evt_denom)*100) ," % \n")
+    
+    print("HLT PATHS EFFICIENCIES : ")
+
+    for i in range(SizeHLT):
+        if (TotHLT[i] == 0):
+            print(hlt_trig_names[i], " wasn't counted on any event")
+        else:
+            print(hlt_trig_names[i], " = " , PassHLT[i] , " / ", TotHLT[i], " = ", (PassHLT[i]*1.0/TotHLT[i])*100, " % ± ", math.sqrt(((PassHLT[i]*1.0/TotHLT[i]) * ( 1 - (PassHLT[i]*1.0/TotHLT[i])))/TotHLT[i]) * 100, " % ")
+
     print("ON ALL EVENTS WITH AT LEAST 1 RECO HSCP, NO PRESELECTION\n")
 
     print("Efficiency per event of L1_ETMHF100 OR L1_ETMHF110 OR L1_ETM150 OR L1_ETMHF120 OR L1_ETMHF150 ON ALL EVENTS= ", or_first_l1_pfmet_num, " / ", or_first_l1_pfmet_denom, " = ", (or_first_l1_pfmet_num/or_first_l1_pfmet_denom)*100, " % ± ", "%.2f" % (err_eff_or_etmhf*100) ,"% \n") 
@@ -912,7 +963,21 @@ if __name__ == "__main__":
   
     print("Efficiency per event of L1_ETMHF100 OR L1_ETMHF110 OR L1_ETM150 OR L1_ETMHF120 OR L1_ETMHF150 PRESELECTION", or_first_l1_pfmet_num_presel, " / ", or_first_l1_pfmet_denom_presel, " = ", (or_first_l1_pfmet_num_presel/or_first_l1_pfmet_denom_presel)*100, " % ± ", "%.2f" % (err_eff_or_etmhf_presel*100) ,"% \n") 
     
-    print("============ ON ALL HSCP PASSING PRESELECTION, NO L1 REQUIRED ============ \n")
+    print("============ ON HSCP PASSING PRESELECTION, NO L1 REQUIRED ============ \n")
+
+    print("Efficiencies of every L1 seeds :")
+    for u in range(len(ListNames)):
+        print(ListNames[x], " = ", ListNumL1[u], " / ", ListDenomL1[u], " = ", (ListNumL1[u]/ListDenomL1[u])*100, " %")
+
+    print("Efficiency of OR of ALL L1 seeds =", nb_evt_all_seeds_num, " / ", nb_evt_all_seeds_denom, " = ", (nb_evt_all_seeds_num/nb_evt_all_seeds_denom)*100 , " %" )
+
+    print("HLT PATHS EFFICIENCIES AFTER PRESELECTION  : ")
+    for i in range(SizeHLT):
+        if (TotHLT_presel[i] == 0):
+            print(hlt_trig_names[i], " wasn't counted on any event")
+        else:
+            print(hlt_trig_names[i], " = " , PassHLT_presel[i] , " / ", TotHLT_presel[i], " = ", (PassHLT_presel[i]*1.0/TotHLT_presel[i])*100, " % ± ", math.sqrt(((PassHLT_presel[i]*1.0/TotHLT_presel[i]) * ( 1 - (PassHLT_presel[i]*1.0/TotHLT_presel[i])))/TotHLT_presel[i]) * 100, " % ")
+
 
     if denom_presel_evt != 0:
         eff_met_presel = met_filter_num_presel/denom_presel_evt
